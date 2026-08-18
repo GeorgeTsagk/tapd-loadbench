@@ -27,7 +27,9 @@ jq -s '[ .[] | {
         universe_leaves: (.universe_leaves // 0),
         multiverse_root: (.multiverse_root // "")
       })),
-      containers: ((.after.containers // {}) | map_values({mem_bytes}))
+      containers: ((.after.containers // {}) | map_values({
+        mem_bytes, mem_peak_bytes: (.mem_peak_bytes // 0)
+      }))
     },
     delta: (.delta | map_values({db_bytes}))
   } ] | sort_by(.epoch)' "$DATA" > "$OUT/epochs.json"

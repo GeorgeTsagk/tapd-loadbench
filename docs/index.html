@@ -243,6 +243,18 @@
 
   <section class="card">
     <span class="eyebrow">By role</span>
+    <h2>Resident memory after each epoch</h2>
+    <p class="note">Sampled once on each node when the epoch's cases have finished,
+      so it is where memory settles after the work rather than a peak during it.
+      Taken from the container's cgroup, less inactive page cache. The records also
+      carry <code>mem_peak_bytes</code>, a high water mark since the container
+      started, which keeps climbing if something leaks.</p>
+    <div class="legend" id="lg-mem"></div>
+    <div class="plot" id="p-mem"><div class="tip" id="t-mem"></div></div>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">By role</span>
     <h2>Assets held</h2>
     <p class="note">Cumulative asset count on the minter and the receiver.</p>
     <div class="legend" id="lg-assets"></div>
@@ -497,6 +509,8 @@ function render(data) {
   const dbOf = (e, k) => e.after.tapd[k] && e.after.tapd[k].db_bytes;
   const growthOf = (e, k) => e.delta[k] && e.delta[k].db_bytes;
   const assetsOf = (e, k) => e.after.tapd[k] && e.after.tapd[k].assets;
+  const memOf = (e, k) => (e.after.containers || {})[k]
+    ? e.after.containers[k].mem_bytes : null;
   const draw = (id, group, pick, fmt) => lineChart(
     document.getElementById('p-' + id), document.getElementById('t-' + id),
     document.getElementById('lg-' + id), mk(group, pick), fmt);
@@ -506,6 +520,7 @@ function render(data) {
   draw('uni', UNIVERSE, dbOf, fmtBytes);
   draw('unid', UNIVERSE, growthOf, fmtBytes);
   draw('db', ROLES, dbOf, fmtBytes);
+  draw('mem', ROLES, memOf, fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
 
   const head = ['epoch', 'finished (UTC)', 'total', ...CASES.map(c => c.key),

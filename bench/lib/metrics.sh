@@ -56,6 +56,34 @@ proofs_count() {
 # would otherwise hide behind passing test cases.
 ALL_CONTAINERS="bitcoind pg $LND_NODES $TAPD_NODES"
 
+# Resident memory straight from the container's cgroup, which is both cheaper and
+# more informative than docker stats.
+#
+# mem_bytes matches what docker stats prints: memory.current less inactive page
+# cache, so a database's page cache does not read as daemon memory.
+#
+# mem_peak_bytes is memory.peak, the high water mark. It cannot be reset without
+# root, so it is cumulative since the container started rather than a per-epoch
+# peak. A high water mark that keeps climbing epoch after epoch is the leak
+# signal; one that flattens means memory use has settled.
+cgroup_memory() {
+  local node=$1 cid base current inactive peak
+  cid=$(docker inspect -f '{{.Id}}' "$node" 2>/dev/null) || { echo '{}'; return; }
+
+  for base in "/sys/fs/cgroup/system.slice/docker-$cid.scope" \
+              "/sys/fs/cgroup/docker/$cid"; do
+    [[ -r "$base/memory.current" ]] || continue
+    current=$(cat "$base/memory.current")
+    inactive=$(awk '/^inactive_file /{print $2}' "$base/memory.stat" 2>/dev/null)
+    peak=$(cat "$base/memory.peak" 2>/dev/null || echo 0)
+    jq -cn --argjson c "$current" --argjson i "${inactive:-0}" --argjson p "${peak:-0}" \
+      '{mem_bytes: (if $c > $i then $c - $i else $c end), mem_peak_bytes: $p}'
+    return
+  done
+
+  echo '{}'
+}
+
 all_container_stats() {
   local raw
   # shellcheck disable=SC2086
@@ -85,8 +113,18 @@ all_container_stats() {
         (c++ ? "," : "{"), "", $1, bytes(m[1]), (cpu == "" ? 0 : cpu)
     }
     END { print (c ? "}" : "{}") }
-  ' | jq -c --argjson r "$restarts" \
-      'to_entries | map({key: .key, value: (.value + {restart_count: ($r[.key] // 0)})}) | from_entries'
+  ' | jq -c --argjson r "$restarts" --argjson m "$(
+        mem="{}"
+        for n in $ALL_CONTAINERS; do
+          mem=$(jq -cn --argjson acc "$mem" --arg k "$n" \
+            --argjson v "$(cgroup_memory "$n")" '$acc + {($k): $v}')
+        done
+        echo "$mem"
+      )" \
+      'to_entries
+       | map({key: .key,
+              value: (.value + {restart_count: ($r[.key] // 0)} + ($m[.key] // {}))})
+       | from_entries'
 }
 
 # Everything about one tapd node.

@@ -956,34 +956,44 @@
       },
       "containers": {
         "bitcoind": {
-          "mem_bytes": 53099888
+          "mem_bytes": 53099888,
+          "mem_peak_bytes": 0
         },
         "pg": {
-          "mem_bytes": 134951731
+          "mem_bytes": 134951731,
+          "mem_peak_bytes": 0
         },
         "alice": {
-          "mem_bytes": 76430704
+          "mem_bytes": 76430704,
+          "mem_peak_bytes": 0
         },
         "bob": {
-          "mem_bytes": 71156367
+          "mem_bytes": 71156367,
+          "mem_peak_bytes": 0
         },
         "uni": {
-          "mem_bytes": 43924848
+          "mem_bytes": 43924848,
+          "mem_peak_bytes": 0
         },
         "uni2": {
-          "mem_bytes": 41911582
+          "mem_bytes": 41911582,
+          "mem_peak_bytes": 0
         },
         "alice-tapd": {
-          "mem_bytes": 164941004
+          "mem_bytes": 164941004,
+          "mem_peak_bytes": 0
         },
         "bob-tapd": {
-          "mem_bytes": 61121495
+          "mem_bytes": 61121495,
+          "mem_peak_bytes": 0
         },
         "uni-tapd": {
-          "mem_bytes": 47636807
+          "mem_bytes": 47636807,
+          "mem_peak_bytes": 0
         },
         "uni2-tapd": {
-          "mem_bytes": 33638318
+          "mem_bytes": 33638318,
+          "mem_peak_bytes": 0
         }
       }
     },
@@ -996,6 +1006,128 @@
       },
       "uni-tapd": {
         "db_bytes": 114688
+      },
+      "uni2-tapd": {
+        "db_bytes": 98304
+      }
+    }
+  },
+  {
+    "epoch": 13,
+    "finished_at": "2026-08-18T16:31:26Z",
+    "duration_s": 101.40,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 2.18
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 71.96
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 27.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 15597568,
+          "proofs_bytes": 27903672,
+          "assets": 386,
+          "universe_roots": 10,
+          "universe_leaves": 501,
+          "multiverse_root": "8fff9a7364228bf5df95fa92b91c16d688b97e7587505133cb1e567179dcbe55"
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 22961175,
+          "proofs_bytes": 2535279,
+          "assets": 13,
+          "universe_roots": 10,
+          "universe_leaves": 4181,
+          "multiverse_root": "8fff9a7364228bf5df95fa92b91c16d688b97e7587505133cb1e567179dcbe55"
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 2281472,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 255,
+          "multiverse_root": "8fff9a7364228bf5df95fa92b91c16d688b97e7587505133cb1e567179dcbe55"
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 14187543,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 255,
+          "multiverse_root": "8fff9a7364228bf5df95fa92b91c16d688b97e7587505133cb1e567179dcbe55"
+        }
+      },
+      "containers": {
+        "bitcoind": {
+          "mem_bytes": 53149696,
+          "mem_peak_bytes": 59777024
+        },
+        "pg": {
+          "mem_bytes": 129880064,
+          "mem_peak_bytes": 247586816
+        },
+        "alice": {
+          "mem_bytes": 76115968,
+          "mem_peak_bytes": 310296576
+        },
+        "bob": {
+          "mem_bytes": 70344704,
+          "mem_peak_bytes": 296247296
+        },
+        "uni": {
+          "mem_bytes": 43872256,
+          "mem_peak_bytes": 297152512
+        },
+        "uni2": {
+          "mem_bytes": 42655744,
+          "mem_peak_bytes": 296407040
+        },
+        "alice-tapd": {
+          "mem_bytes": 165867520,
+          "mem_peak_bytes": 252583936
+        },
+        "bob-tapd": {
+          "mem_bytes": 63905792,
+          "mem_peak_bytes": 90206208
+        },
+        "uni-tapd": {
+          "mem_bytes": 48082944,
+          "mem_peak_bytes": 69214208
+        },
+        "uni2-tapd": {
+          "mem_bytes": 32698368,
+          "mem_peak_bytes": 48078848
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 913408
+      },
+      "bob-tapd": {
+        "db_bytes": 311296
+      },
+      "uni-tapd": {
+        "db_bytes": 126976
       },
       "uni2-tapd": {
         "db_bytes": 98304
