@@ -440,13 +440,16 @@ function render(data) {
   const totalProofs = Object.values(last.after.tapd).reduce((a, n) => a + n.proofs_bytes, 0);
   const assetRows = ROLES.reduce((a, n) => a + last.after.tapd[n.key].assets, 0);
 
+  // Only the two asset nodes. The record carries all ten containers, but the
+  // chain backend, the postgres instance and the lnd nodes are supporting cast,
+  // and folding them in obscures what tapd itself costs.
   const containers = last.after.containers || {};
-  const containerNames = Object.keys(containers);
-  const totalMem = containerNames.reduce((a, k) => a + (containers[k].mem_bytes || 0), 0);
-  const memTile = containerNames.length
-    ? cell('memory', fmtBytes(totalMem),
-        `${containerNames.length} containers, resident, last epoch`)
-    : cell('memory', 'n/a', 'not captured for this epoch');
+  const memNodes = ROLES.filter(n => containers[n.key]);
+  const totalMem = memNodes.reduce((a, n) => a + (containers[n.key].mem_bytes || 0), 0);
+  const memTile = memNodes.length
+    ? cell('tapd memory', fmtBytes(totalMem),
+        memNodes.map(n => n.key).join(' + ') + ', resident')
+    : cell('tapd memory', 'n/a', 'not captured for this epoch');
 
   document.getElementById('readout').innerHTML =
     cell('epochs', data.length, 'appended one per scheduled run') +
