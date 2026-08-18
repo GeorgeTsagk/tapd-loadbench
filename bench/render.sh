@@ -12,6 +12,13 @@ OUT="$ROOT/docs"
 
 [[ -s "$DATA" ]] || { echo "no data yet at $DATA"; exit 0; }
 
+# docs/ is the Pages publish root, so docs/CNAME is what binds the custom domain.
+# Nothing here deletes it, but losing it silently unbinds the domain, so fail
+# loudly rather than publishing a site that reverts to the github.io URL.
+if [[ -f "$OUT/CNAME" ]]; then
+  grep -qE '^[a-z0-9.-]+$' "$OUT/CNAME" || { echo "docs/CNAME looks malformed" >&2; exit 1; }
+fi
+
 mkdir -p "$OUT"
 
 # The page reads a small subset of each record. Project just that: the full
