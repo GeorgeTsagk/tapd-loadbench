@@ -1,8 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>tapd Growth Bench</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -181,8 +176,585 @@
   a { color: var(--accent); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-</head>
-<body>
+<script>window.__EPOCHS__=[
+  {
+    "epoch": 1,
+    "finished_at": "2026-08-18T14:03:54Z",
+    "duration_s": 36.99,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 2.91
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 32.82
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 1.22
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 843776,
+          "proofs_bytes": 81501,
+          "assets": 5,
+          "universe_roots": 9
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 12319767,
+          "proofs_bytes": 46388,
+          "assets": 6,
+          "universe_roots": 5
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 700416,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 11934743,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 155648
+      },
+      "bob-tapd": {
+        "db_bytes": 827392
+      },
+      "uni-tapd": {
+        "db_bytes": 12288
+      },
+      "uni2-tapd": {
+        "db_bytes": 450560
+      }
+    }
+  },
+  {
+    "epoch": 2,
+    "finished_at": "2026-08-18T14:05:17Z",
+    "duration_s": 64.76,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.22
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 60.27
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 3.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1945600,
+          "proofs_bytes": 1249532,
+          "assets": 36,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 13040663,
+          "proofs_bytes": 132719,
+          "assets": 4,
+          "universe_roots": 9
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 823296,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 12246039,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 1101824
+      },
+      "bob-tapd": {
+        "db_bytes": 720896
+      },
+      "uni-tapd": {
+        "db_bytes": 122880
+      },
+      "uni2-tapd": {
+        "db_bytes": 311296
+      }
+    }
+  },
+  {
+    "epoch": 3,
+    "finished_at": "2026-08-18T14:06:32Z",
+    "duration_s": 56.87,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.31
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 50.29
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 5.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 3145728,
+          "proofs_bytes": 2522936,
+          "assets": 65,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 13515799,
+          "proofs_bytes": 241997,
+          "assets": 4,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 942080,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 12499991,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 1200128
+      },
+      "bob-tapd": {
+        "db_bytes": 475136
+      },
+      "uni-tapd": {
+        "db_bytes": 118784
+      },
+      "uni2-tapd": {
+        "db_bytes": 253952
+      }
+    }
+  },
+  {
+    "epoch": 4,
+    "finished_at": "2026-08-18T14:07:46Z",
+    "duration_s": 54.90,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.41
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 46.23
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 7.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 4009984,
+          "proofs_bytes": 3316535,
+          "assets": 94,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 14326807,
+          "proofs_bytes": 307128,
+          "assets": 3,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1069056,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 12729367,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 864256
+      },
+      "bob-tapd": {
+        "db_bytes": 811008
+      },
+      "uni-tapd": {
+        "db_bytes": 126976
+      },
+      "uni2-tapd": {
+        "db_bytes": 229376
+      }
+    }
+  },
+  {
+    "epoch": 5,
+    "finished_at": "2026-08-18T14:09:21Z",
+    "duration_s": 75.23,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.44
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 64.53
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 9.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 5541888,
+          "proofs_bytes": 6260653,
+          "assets": 122,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 14744599,
+          "proofs_bytes": 478098,
+          "assets": 7,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1220608,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 12852247,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 1531904
+      },
+      "bob-tapd": {
+        "db_bytes": 303104
+      },
+      "uni-tapd": {
+        "db_bytes": 151552
+      },
+      "uni2-tapd": {
+        "db_bytes": 122880
+      }
+    }
+  },
+  {
+    "epoch": 6,
+    "finished_at": "2026-08-18T14:10:58Z",
+    "duration_s": 77.72,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.54
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 64.92
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 11.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 6500352,
+          "proofs_bytes": 7902916,
+          "assets": 151,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 15531031,
+          "proofs_bytes": 658241,
+          "assets": 9,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1314816,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 13048855,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 958464
+      },
+      "bob-tapd": {
+        "db_bytes": 786432
+      },
+      "uni-tapd": {
+        "db_bytes": 94208
+      },
+      "uni2-tapd": {
+        "db_bytes": 196608
+      }
+    }
+  },
+  {
+    "epoch": 7,
+    "finished_at": "2026-08-18T14:12:46Z",
+    "duration_s": 85.33,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.58
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 70.49
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 13.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 7675904,
+          "proofs_bytes": 10671644,
+          "assets": 181,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 16571415,
+          "proofs_bytes": 870679,
+          "assets": 9,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1413120,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 13270039,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 1175552
+      },
+      "bob-tapd": {
+        "db_bytes": 1040384
+      },
+      "uni-tapd": {
+        "db_bytes": 98304
+      },
+      "uni2-tapd": {
+        "db_bytes": 221184
+      }
+    }
+  },
+  {
+    "epoch": 8,
+    "finished_at": "2026-08-18T14:14:46Z",
+    "duration_s": 95.68,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 1.71
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 78.70
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 15.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 9453568,
+          "proofs_bytes": 15388952,
+          "assets": 211,
+          "universe_roots": 10
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 17554455,
+          "proofs_bytes": 1181883,
+          "assets": 9,
+          "universe_roots": 10
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 1527808,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 13483031,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 1777664
+      },
+      "bob-tapd": {
+        "db_bytes": 1081344
+      },
+      "uni-tapd": {
+        "db_bytes": 114688
+      },
+      "uni2-tapd": {
+        "db_bytes": 212992
+      }
+    }
+  }
+];</script>
+
 <div class="wrap">
   <header>
     <span class="eyebrow">Taproot Assets daemon &middot; regtest, never reset</span>
@@ -530,5 +1102,3 @@ if (window.__EPOCHS__) {
   });
 }
 </script>
-</body>
-</html>

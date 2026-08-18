@@ -34,7 +34,11 @@ if [[ -n "$(git status --porcelain data docs 2>/dev/null)" ]]; then
   echo "committed epoch $epoch"
 fi
 
-# Pushing is left to the operator or to an explicit push step: this script does
-# not touch the remote on its own.
+# Push so the published page tracks the data. Never force, and never let a push
+# failure lose the local commit: the record is already safe in the log.
+if git remote get-url origin >/dev/null 2>&1; then
+  git push origin HEAD || echo "push failed (commit is local, will go with the next run)"
+fi
+
 echo "=== cron run finished (epoch rc=$rc) ==="
 exit "$rc"
