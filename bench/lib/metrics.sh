@@ -81,6 +81,21 @@ tapd_metrics() {
   proofs_b=$(proofs_bytes "$node")
   proofs_n=$(proofs_count "$node")
 
+  # universe stats is the authoritative universe size. The equivalent
+  # Prometheus gauges are background-aggregated and lag behind reality.
+  local ustats leaves ugroups
+  ustats=$(tapcli "$node" universe stats 2>/dev/null || echo '{}')
+  leaves=$(echo "$ustats" | jq -r '(.num_total_proofs // "0") | tonumber')
+  ugroups=$(echo "$ustats" | jq -r '(.num_total_groups // "0") | tonumber')
+  # The multiverse root is a commitment to the node's entire universe state, so
+  # two nodes holding the same content produce the same hash. That is an exact
+  # equality test, unlike the leaf count above, which comes from tapd's
+  # background stats aggregator and lags behind reality.
+  local mv mvsum mvroot
+  mv=$(tapcli "$node" universe multiverse 2>/dev/null || echo '{}')
+  mvsum=$(echo "$mv" | jq -r '(.multiverse_root.root_sum // "0") | tonumber')
+  mvroot=$(echo "$mv" | jq -r '.multiverse_root.root_hash // ""')
+
   assets=$(tapcli "$node" assets list 2>/dev/null | jq '.assets|length' || echo 0)
   groups=$(tapcli "$node" assets list 2>/dev/null \
     | jq '[.assets[]?.asset_group.tweaked_group_key // empty]|unique|length' || echo 0)
@@ -103,6 +118,10 @@ tapd_metrics() {
     --argjson assets "${assets:-0}" \
     --argjson groups "${groups:-0}" \
     --argjson universe_roots "${roots:-0}" \
+    --argjson universe_leaves "${leaves:-0}" \
+    --argjson universe_groups "${ugroups:-0}" \
+    --argjson multiverse_sum "${mvsum:-0}" \
+    --arg multiverse_root "${mvroot:-}" \
     --argjson mint_batches "${batches:-0}" \
     --argjson heap_bytes "$(prom "$node" go_memstats_heap_inuse_bytes)" \
     --argjson goroutines "$(prom "$node" go_goroutines)" \
@@ -113,6 +132,8 @@ tapd_metrics() {
     '{backend: $backend, db_bytes: $db_bytes, storage: $storage,
       proofs_bytes: $proofs_bytes, proofs_files: $proofs_files,
       assets: $assets, groups: $groups, universe_roots: $universe_roots,
+      universe_leaves: $universe_leaves, universe_groups: $universe_groups,
+      multiverse_sum: $multiverse_sum, multiverse_root: $multiverse_root,
       mint_batches: $mint_batches, heap_bytes: $heap_bytes,
       goroutines: $goroutines, grpc_calls: $grpc_calls,
       universe_syncs: $uni_syncs, universe_proofs: $uni_proofs,

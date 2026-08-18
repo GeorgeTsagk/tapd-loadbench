@@ -5,12 +5,12 @@ layer on top, so that a regression gets noticed rather than just recorded.
 
 Per fire, in order:
 
-1. `bench/deploy.sh` — no-op if the network is already up, recovers it after a
+1. `bench/deploy.sh`: no-op if the network is already up, recovers it after a
    host reboot. If it fails, stop and report; do not try to run an epoch.
-2. `bench/epoch.sh` — one epoch. Exits non-zero if a case did not pass, but the
+2. `bench/epoch.sh`: one epoch. Exits non-zero if a case did not pass, but the
    record is written either way.
-3. `bench/report.sh` — the comparison against the trailing baseline.
-4. `bench/render.sh` — refresh `docs/`.
+3. `bench/report.sh`: the comparison against the trailing baseline.
+4. `bench/render.sh`: refresh `docs/`.
 5. Commit `data/` and `docs/`. Push only if pushing is enabled for this schedule.
 
 Then read the report and decide whether anything needs saying:

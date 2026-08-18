@@ -22,7 +22,9 @@ jq -s '[ .[] | {
     versions: {tapd: .versions.tapd, lnd: .versions.lnd},
     cases: [.cases[] | {name, status, duration_s}],
     after: {tapd: (.after.tapd | map_values({
-      backend, db_bytes, proofs_bytes, assets, universe_roots
+      backend, db_bytes, proofs_bytes, assets, universe_roots,
+      universe_leaves: (.universe_leaves // 0),
+      multiverse_root: (.multiverse_root // "")
     }))},
     delta: (.delta | map_values({db_bytes}))
   } ] | sort_by(.epoch)' "$DATA" > "$OUT/epochs.json"

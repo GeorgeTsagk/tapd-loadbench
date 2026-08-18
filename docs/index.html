@@ -211,7 +211,8 @@
     <h2>Universe server database: sqlite against postgres</h2>
     <p class="note"><code>uni-tapd</code> and <code>uni2-tapd</code> are federation
       peers that both sync every asset, so they hold the same content under the same
-      load and differ only in storage backend. Both figures come from tapd's own
+      load and differ only in storage backend. Every epoch checks that by comparing
+      their multiverse root hashes, which commit to the whole universe. Both figures come from tapd's own
       <code>total_db_size</code>, so they are measured the same way. Postgres carries
       a fixed multi-megabyte catalog baseline: read the slope, not the offset.</p>
     <p class="warn" id="diverged" hidden></p>
@@ -450,9 +451,15 @@ function render(data) {
 
   // The backend comparison holds only while both universe servers carry the
   // same content. Say so on the page when they do not.
-  const bad = data.filter(e =>
-    e.after.tapd['uni-tapd'].universe_roots !==
-    e.after.tapd['uni2-tapd'].universe_roots);
+  // The multiverse root commits to a node's entire universe state, so equal
+  // hashes mean equal content. That is exact, unlike the leaf count, which comes
+  // from tapd's background stats aggregator and lags. Records written before the
+  // hash was captured carry an empty string and are skipped.
+  const bad = data.filter(e => {
+    const a = e.after.tapd['uni-tapd'].multiverse_root || '';
+    const b = e.after.tapd['uni2-tapd'].multiverse_root || '';
+    return a && b && a !== b;
+  });
   if (bad.length) {
     const d = document.getElementById('diverged');
     d.hidden = false;
@@ -492,7 +499,7 @@ function render(data) {
   const head = ['epoch', 'finished (UTC)', 'total', ...CASES.map(c => c.key),
     ...NODES.map(n => n.short + ' db'),
     ...ROLES.map(n => n.short + ' assets'),
-    ...UNIVERSE.map(n => n.short + ' roots')];
+    ...UNIVERSE.map(n => n.short + ' leaves')];
   const rows = data.slice().reverse().map(e => {
     const cs = CASES.map(c => {
       const f = e.cases.find(x => x.name === c.key);
@@ -507,7 +514,7 @@ function render(data) {
       `<td>${fmtSecs(e.duration_s)}</td>` + cs.join('') +
       NODES.map(n => `<td>${fmtBytes(e.after.tapd[n.key].db_bytes)}</td>`).join('') +
       ROLES.map(n => `<td>${fmtInt(e.after.tapd[n.key].assets)}</td>`).join('') +
-      UNIVERSE.map(n => `<td>${fmtInt(e.after.tapd[n.key].universe_roots)}</td>`).join('') +
+      UNIVERSE.map(n => `<td>${fmtInt(e.after.tapd[n.key].universe_leaves)}</td>`).join('') +
       '</tr>';
   });
   document.getElementById('table').innerHTML =

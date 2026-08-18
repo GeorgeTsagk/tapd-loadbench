@@ -127,6 +127,7 @@ DELTA=$(jq -cn --argjson b "$BEFORE" --argjson a "$AFTER" '
       proofs_files:  ($a.tapd[$k].proofs_files  - $b.tapd[$k].proofs_files),
       assets:        ($a.tapd[$k].assets        - $b.tapd[$k].assets),
       universe_roots:($a.tapd[$k].universe_roots - $b.tapd[$k].universe_roots),
+      universe_leaves:($a.tapd[$k].universe_leaves - $b.tapd[$k].universe_leaves),
       grpc_calls:    ($a.tapd[$k].grpc_calls    - $b.tapd[$k].grpc_calls)
     }})')
 

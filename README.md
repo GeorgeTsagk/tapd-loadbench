@@ -4,7 +4,7 @@ A persistent Taproot Assets regtest network that never gets reset, plus a cron j
 that runs one load epoch against it and appends the numbers to
 [`data/epochs.jsonl`](data/epochs.jsonl).
 
-The question this answers is not "how fast is tapd" — CI already measures that on
+The question this answers is not "how fast is tapd". CI already measures that on
 a clean node. It is **how tapd behaves as its state grows**: after a few hundred
 epochs the asset store, the proof archive and the universe hold real volume, and
 the interesting number is what epoch 300 costs compared to epoch 1.
@@ -21,9 +21,9 @@ survives restarts and host reboots.
 | `bob-tapd` | receiver | postgres | 10030 | 8990 |
 | `uni-tapd` | universe server, proof courier | sqlite | 10031 | 8991 |
 | `uni2-tapd` | universe server, postgres twin of `uni-tapd` | postgres | 10032 | 8992 |
-| `alice`, `bob`, `uni`, `uni2` | lnd v0.21.2-beta, one per tapd | — | 10011-10014 | — |
-| `bitcoind` | Bitcoin Core 29, regtest | — | 18443 | — |
-| `pg` | PostgreSQL 16, holds `bobtapd` and `uni2tapd` | — | 5432 | — |
+| `alice`, `bob`, `uni`, `uni2` | lnd v0.21.2-beta, one per tapd | n/a | 10011-10014 | n/a |
+| `bitcoind` | Bitcoin Core 29, regtest | n/a | 18443 | n/a |
+| `pg` | PostgreSQL 16, holds `bobtapd` and `uni2tapd` | n/a | 5432 | n/a |
 
 tapd is pinned to **v0.8.1**. Pinning is deliberate: with the version fixed, any
 movement in the time series is attributable to accumulated state rather than to a
@@ -40,13 +40,18 @@ assertion is in the vendored taproot-assets package, so it cannot be relaxed fro
 the load suite.
 
 That means `alice-tapd` (sqlite) is always the minter and `bob-tapd` (postgres)
-always the receiver, so those two are **not** a backend comparison — they are two
+always the receiver, so those two are **not** a backend comparison. They are two
 different jobs. The sqlite-vs-postgres comparison is made instead between
 `uni-tapd` and `uni2-tapd`: federation peers that both sync all assets, so they
 hold the same content under the same sync load and differ only in backend. Every
 epoch record carries both nodes' root counts, and `bench/report.sh` and the site
-both flag any epoch where those counts disagree, because the comparison is
-meaningless when they do.
+both flag any epoch where their multiverse root hashes disagree, because the
+comparison is meaningless when they do. The root hash commits to a node's whole
+universe, so equal hashes mean equal content.
+
+Note that the universe servers hold fewer roots than the minter: the minter also
+tracks roots for its own issuance. What has to match for the comparison to hold is
+the two universe servers against each other, which is what the check tests.
 
 Expect the first handful of epochs to show a wild postgres-to-sqlite ratio. At
 these volumes postgres is dominated by 8 kB page and extent allocation, not by the
@@ -81,9 +86,9 @@ builds it; the binary is not committed.
 ### Cases that are not run
 
 `mint`, `send` and `multisig` are excluded. They reuse taproot-assets `itest`
-assertion helpers that assert on global counts — `AssertAddrEvent` requires
-exactly one address event, for instance — which holds only on a node that was
-just created. On a network that is never reset those counts grow every epoch, so
+assertion helpers that assert on global counts, such as `AssertAddrEvent`
+requiring exactly one address event. That holds only on a node that was just
+created. On a network that is never reset those counts grow every epoch, so
 these cases fail from epoch 2 onward for reasons that say nothing about tapd. The
 V2 cases exist precisely because they assert less. `multisig` is worse than merely
 failing: it mints a group with a different decimal display, which used to wedge
@@ -104,19 +109,23 @@ Three fixes to the load suite came out of setting this up, on the
 
 Per epoch, before and after, for each of the three tapd nodes:
 
-- `db_bytes` — tapd's own `total_db_size` gauge. Backend-aware, so sqlite and
+- `db_bytes`: tapd's own `total_db_size` gauge. Backend-aware, so sqlite and
   postgres numbers come from the same code path and are comparable. Note that
   postgres includes a fixed multi-megabyte catalog baseline: **compare growth
   rates, not absolute sizes.**
-- `storage` — backend detail. For sqlite the main file, WAL, SHM and migration
+- `storage`: backend detail. For sqlite the main file, WAL, SHM and migration
   backups separately; the main file is often tiny while the WAL holds everything
   not yet checkpointed, which is why `db_bytes` rather than the file size is the
   headline. For postgres, `pg_database_size` plus the ten largest relations.
-- `proofs_bytes`, `proofs_files` — the on-disk proof archive, which lives outside
+- `proofs_bytes`, `proofs_files`: the on-disk proof archive, which lives outside
   the database and is otherwise invisible.
-- `assets`, `groups`, `universe_roots`, `mint_batches` — state counts from tapcli.
-- `heap_bytes`, `goroutines`, `grpc_calls` — from the tapd Prometheus endpoint.
-- `container.restart_count` — a rising count means the daemon is crash-looping,
+- `assets`, `groups`, `universe_roots`, `universe_leaves`, `multiverse_sum`,
+  `mint_batches`: state counts from tapcli. `universe_leaves` is the proof count
+  from `universe stats`. Read it as an indicator only: tapd aggregates those stats
+  in the background, so the figure lags, sometimes by several epochs. When an exact
+  answer matters, use `multiverse_root`.
+- `heap_bytes`, `goroutines`, `grpc_calls`: from the tapd Prometheus endpoint.
+- `container.restart_count`: a rising count means the daemon is crash-looping,
   which would otherwise hide behind passing cases.
 
 `delta` in each record is the per-epoch growth, which is the number that compares
@@ -139,7 +148,7 @@ bench/render.sh           # refresh the site under docs/
 
 `bench/epoch.sh` takes a lock and exits quietly if an epoch is already running, so
 overlapping cron fires skip rather than interleave. A failed case still gets
-recorded — a failed epoch is data — and then the script exits non-zero.
+recorded, because a failed epoch is data, and then the script exits non-zero.
 
 ## Site
 
