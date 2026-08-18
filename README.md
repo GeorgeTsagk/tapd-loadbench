@@ -78,10 +78,14 @@ separately, and writes a single JSON record:
 Tunables live in [`bench/config.env`](bench/config.env). Changing one breaks
 comparability with earlier epochs, so bump `SCHEMA_NOTE` when you do.
 
-The load generator is the suite extracted from taproot-assets into the private
-repo `the extracted load suite` (taproot-assets commit `1cf127aa`, "itest:
-remove loadtest subdirectory"). [`bench/build.sh`](bench/build.sh) clones and
-builds it; the binary is not committed.
+The load generator is the suite that was removed from taproot-assets in commit
+`1cf127aa` ("itest: remove loadtest subdirectory") and extracted into a separate
+repository, which is not public. [`bench/build.sh`](bench/build.sh) builds it from
+a checkout you point it at, so **regenerating the binary needs access to that
+repository**. Everything else here works without it: the harness, the recorded
+data and the site depend only on a built binary being present at
+`bench/bin/loadtest`. The exact revision each epoch ran against is recorded in
+`bench/bin/loadtest.rev`.
 
 ### Cases that are not run
 
@@ -94,8 +98,8 @@ V2 cases exist precisely because they assert less. `multisig` is worse than mere
 failing: it mints a group with a different decimal display, which used to wedge
 `mintV2` permanently.
 
-Three fixes to the load suite came out of setting this up, on the
-`a fix branch` branch of `load suite`:
+Three fixes to the load suite came out of setting this up, held on a branch of
+that repository:
 
 - the multisig case handed its own host-side address to the peer as the universe
   host, so the peer dialled itself and tapd rejected the self-add
@@ -145,6 +149,11 @@ bench/render.sh           # refresh the site under docs/
 ```
 
 `bench/deploy.sh --reset` destroys all state and starts over. It prompts first.
+
+Nothing here is specific to one machine except the container runtime: `.ddp/`
+holds the compose definition and is not committed, because it is generated and
+machine-local. `bench/lib/common.sh` is the single place the topology, ports and
+backends are declared.
 
 `bench/epoch.sh` takes a lock and exits quietly if an epoch is already running, so
 overlapping cron fires skip rather than interleave. A failed case still gets

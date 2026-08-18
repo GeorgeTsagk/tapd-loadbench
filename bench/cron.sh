@@ -4,13 +4,14 @@
 # schedule with no one watching.
 #
 # Install with:
-#   crontab -l 2>/dev/null | { cat; echo "23 */6 * * * /workspace/tapd-loadbench/bench/cron.sh"; } | crontab -
+#   crontab -l 2>/dev/null | { cat; echo "23 */6 * * * $PWD/bench/cron.sh"; } | crontab -
 set -uo pipefail
 
 # cron gives a minimal environment. Everything this script shells out to has to
 # be on PATH explicitly, and git needs HOME to find the credential store.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin:$HOME/go/bin"
-export HOME="${HOME:-${HOME}}"
+# cron may not export HOME, and git needs it to find the credential store.
+export HOME="${HOME:-$(getent passwd "$(id -u)" | cut -d: -f6)}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
