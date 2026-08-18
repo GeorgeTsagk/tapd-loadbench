@@ -440,12 +440,21 @@ function render(data) {
   const totalProofs = Object.values(last.after.tapd).reduce((a, n) => a + n.proofs_bytes, 0);
   const assetRows = ROLES.reduce((a, n) => a + last.after.tapd[n.key].assets, 0);
 
+  const containers = last.after.containers || {};
+  const containerNames = Object.keys(containers);
+  const totalMem = containerNames.reduce((a, k) => a + (containers[k].mem_bytes || 0), 0);
+  const memTile = containerNames.length
+    ? cell('memory', fmtBytes(totalMem),
+        `${containerNames.length} containers, resident, last epoch`)
+    : cell('memory', 'n/a', 'not captured for this epoch');
+
   document.getElementById('readout').innerHTML =
     cell('epochs', data.length, 'appended one per scheduled run') +
     cell('last epoch', fmtSecs(last.duration_s), 'all cases, end to end') +
     cell('assets', fmtInt(assetRows), 'held by minter and receiver') +
     cell('database', fmtBytes(totalDb), 'four nodes, as tapd reports it') +
     cell('proof files', fmtBytes(totalProofs), 'on disk, outside the database') +
+    memTile +
     cell('pg / sqlite', ratio === null ? 'n/a' : ratio.toFixed(2) + '×',
       'storage added, cumulative');
 

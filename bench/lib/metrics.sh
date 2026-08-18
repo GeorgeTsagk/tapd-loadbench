@@ -48,27 +48,45 @@ proofs_count() {
     | tr -d '\r' | grep -E '^[0-9]+$' || echo 0
 }
 
-# Container resident memory, CPU share and restart count. A rising restart
-# count is the signal that the daemon is crash-looping, which would otherwise
-# hide behind passing test cases.
-container_stats() {
-  local node=$1
-  local raw mem cpu restarts
-  raw=$(docker stats --no-stream --format '{{.MemUsage}}|{{.CPUPerc}}' "$node" 2>/dev/null)
-  mem=$(echo "$raw" | cut -d'|' -f1 | awk '{print $1}')
-  cpu=$(echo "$raw" | cut -d'|' -f2 | tr -d '%')
-  restarts=$(docker inspect -f '{{.RestartCount}}' "$node" 2>/dev/null || echo 0)
-  # MemUsage comes out human-readable (e.g. "84.3MiB"); normalise to bytes.
-  local mem_b
-  mem_b=$(echo "$mem" | awk '
-    /GiB/ { sub(/GiB/,""); printf "%d", $0 * 1024 * 1024 * 1024; exit }
-    /MiB/ { sub(/MiB/,""); printf "%d", $0 * 1024 * 1024; exit }
-    /KiB/ { sub(/KiB/,""); printf "%d", $0 * 1024; exit }
-    /B/   { sub(/B/,"");   printf "%d", $0; exit }
-    { print 0 }')
-  jq -cn --argjson mem "${mem_b:-0}" --argjson cpu "${cpu:-0}" \
-    --argjson restarts "${restarts:-0}" \
-    '{mem_bytes: $mem, cpu_pct: $cpu, restart_count: $restarts}'
+# Container resident memory, CPU share and restart count for every container in
+# the network, in one docker stats call. Done as a batch because docker stats
+# takes about a second per invocation, and there are ten of them.
+#
+# A rising restart count is the signal that a daemon is crash-looping, which
+# would otherwise hide behind passing test cases.
+ALL_CONTAINERS="bitcoind pg $LND_NODES $TAPD_NODES"
+
+all_container_stats() {
+  local raw
+  # shellcheck disable=SC2086
+  raw=$(docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' \
+    $ALL_CONTAINERS 2>/dev/null)
+
+  local restarts="{}" n
+  for n in $ALL_CONTAINERS; do
+    restarts=$(jq -cn --argjson acc "$restarts" --arg k "$n" \
+      --argjson v "$(docker inspect -f '{{.RestartCount}}' "$n" 2>/dev/null || echo 0)" \
+      '$acc + {($k): $v}')
+  done
+
+  # MemUsage is human readable ("84.3MiB / 58.5GiB"); normalise the used side.
+  echo "$raw" | awk -F'\t' '
+    function bytes(v) {
+      if (v ~ /GiB/) { sub(/GiB/, "", v); return v * 1073741824 }
+      if (v ~ /MiB/) { sub(/MiB/, "", v); return v * 1048576 }
+      if (v ~ /KiB/) { sub(/KiB/, "", v); return v * 1024 }
+      if (v ~ /B/)   { sub(/B/, "", v);   return v + 0 }
+      return 0
+    }
+    NF >= 3 {
+      split($2, m, " ")
+      cpu = $3; sub(/%/, "", cpu)
+      printf "%s%s\"%s\":{\"mem_bytes\":%d,\"cpu_pct\":%s}", \
+        (c++ ? "," : "{"), "", $1, bytes(m[1]), (cpu == "" ? 0 : cpu)
+    }
+    END { print (c ? "}" : "{}") }
+  ' | jq -c --argjson r "$restarts" \
+      'to_entries | map({key: .key, value: (.value + {restart_count: ($r[.key] // 0)})}) | from_entries'
 }
 
 # Everything about one tapd node.
@@ -128,7 +146,7 @@ tapd_metrics() {
     --argjson grpc_calls "$(prom "$node" grpc_server_started_total)" \
     --argjson uni_syncs "$(prom "$node" num_total_syncs)" \
     --argjson uni_proofs "$(prom "$node" num_total_proofs)" \
-    --argjson container "$(container_stats "$node")" \
+    --argjson container "$(echo "$CONTAINER_STATS" | jq -c --arg k "$node" '.[$k] // {}')" \
     '{backend: $backend, db_bytes: $db_bytes, storage: $storage,
       proofs_bytes: $proofs_bytes, proofs_files: $proofs_files,
       assets: $assets, groups: $groups, universe_roots: $universe_roots,
@@ -142,6 +160,9 @@ tapd_metrics() {
 
 # Snapshot of the whole network.
 snapshot() {
+  # One batched docker stats call shared by every node below.
+  CONTAINER_STATS=$(all_container_stats)
+
   local out="{}" n
   for n in $TAPD_NODES; do
     out=$(jq -cn --argjson acc "$out" --arg k "$n" --argjson v "$(tapd_metrics "$n")" \
@@ -150,5 +171,6 @@ snapshot() {
   local height
   height=$(btc getblockcount 2>/dev/null || echo 0)
   jq -cn --argjson nodes "$out" --argjson height "${height:-0}" \
-    '{block_height: $height, tapd: $nodes}'
+    --argjson containers "$CONTAINER_STATS" \
+    '{block_height: $height, tapd: $nodes, containers: $containers}'
 }
