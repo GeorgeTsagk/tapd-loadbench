@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tapd load benchmark</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f6f5f2;
+    --surface-1: #fcfcfb;
+    --border:    #e2e1dc;
+    --grid:      #eceae5;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #7a7873;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --good:     #008300;
+    --critical: #e34948;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #111110;
+      --surface-1: #1a1a19;
+      --border:    #33332f;
+      --grid:      #2a2a27;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #8f8e84;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --good:     #4caf50;
+      --critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #111110;
+    --surface-1: #1a1a19;
+    --border:    #33332f;
+    --grid:      #2a2a27;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #8f8e84;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --good:     #4caf50;
+    --critical: #e66767;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1.25rem 4rem;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+  h2 { font-size: 1rem; margin: 0 0 .15rem; letter-spacing: -.005em; }
+  .sub { color: var(--text-secondary); font-size: .875rem; margin: 0 0 2rem; }
+  .note { color: var(--text-muted); font-size: .8125rem; margin: .35rem 0 0; }
+
+  .tiles {
+    display: grid; gap: .75rem; margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: .85rem .95rem;
+  }
+  .tile .k { font-size: .75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+  .tile .v { font-size: 1.6rem; font-weight: 600; line-height: 1.15; margin-top: .2rem;
+             font-variant-numeric: tabular-nums; }
+  .tile .d { font-size: .75rem; color: var(--text-muted); margin-top: .15rem; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.1rem .8rem; margin-bottom: 1.25rem;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; margin: .5rem 0 .2rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .4rem;
+                 font-size: .8125rem; color: var(--text-secondary); }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+  .plot { position: relative; width: 100%; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0;
+    transition: opacity .08s linear;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: .5rem .6rem; font-size: .8125rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12); white-space: nowrap; z-index: 5;
+  }
+  .tip b { display: block; margin-bottom: .25rem; font-size: .75rem;
+           color: var(--text-secondary); font-weight: 600; }
+  .tip .row { display: flex; align-items: center; gap: .4rem;
+              font-variant-numeric: tabular-nums; }
+
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .8125rem;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: .4rem .55rem; border-bottom: 1px solid var(--border);
+           white-space: nowrap; }
+  th { color: var(--text-secondary); font-weight: 600; text-align: right;
+       position: sticky; top: 0; background: var(--surface-1); }
+  th:first-child, td:first-child { text-align: left; }
+  .pass { color: var(--good); }
+  .fail { color: var(--critical); font-weight: 600; }
+  details { margin-top: 1.25rem; }
+  summary { cursor: pointer; color: var(--text-secondary); font-size: .875rem; }
+  footer { color: var(--text-muted); font-size: .8125rem; margin-top: 2rem; }
+  a { color: var(--series-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>tapd load benchmark</h1>
+  <p class="sub" id="sub">loading…</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <h2>Case duration per epoch</h2>
+    <p class="note">Wall clock for each load case. The network is never reset, so a
+      rising line means the operation costs more as accumulated state grows.</p>
+    <div class="legend" id="lg-dur"></div>
+    <div class="plot" id="p-dur"><div class="tip" id="t-dur"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Universe server database: sqlite vs postgres</h2>
+    <p class="note" id="diverged" hidden></p>
+    <p class="note">The like-for-like backend comparison. <code>uni-tapd</code> and
+      <code>uni2-tapd</code> are federation peers that both sync all assets, so they
+      hold the same content under the same load and differ only in backend.
+      Postgres carries a fixed multi-megabyte catalog baseline, so read the slope,
+      not the offset.</p>
+    <div class="legend" id="lg-uni"></div>
+    <div class="plot" id="p-uni"><div class="tip" id="t-uni"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Universe server growth per epoch</h2>
+    <p class="note">Marginal storage cost of one epoch's work on each backend. Flat
+      is healthy; a rising trend means each unit of work is getting more expensive
+      to store.</p>
+    <div class="legend" id="lg-unid"></div>
+    <div class="plot" id="p-unid"><div class="tip" id="t-unid"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Minter and receiver database</h2>
+    <p class="note">Sizes as tapd reports them (<code>total_db_size</code>).
+      <code>alice-tapd</code> always mints and <code>bob-tapd</code> always receives,
+      so these two are not a backend comparison, only a per-role growth curve.</p>
+    <div class="legend" id="lg-db"></div>
+    <div class="plot" id="p-db"><div class="tip" id="t-db"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Assets held</h2>
+    <p class="note">Cumulative asset count on the minter and the receiver.</p>
+    <div class="legend" id="lg-assets"></div>
+    <div class="plot" id="p-assets"><div class="tip" id="t-assets"></div></div>
+  </div>
+
+  <details open>
+    <summary>Epoch table</summary>
+    <div class="scroll" id="table"></div>
+  </details>
+
+  <footer>
+    Raw data: <a href="epochs.json">epochs.json</a>.
+    One record per epoch, appended by <code>bench/epoch.sh</code>.
+  </footer>
+</div>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const el = (n, a = {}) => {
+  const e = document.createElementNS(NS, n);
+  for (const [k, v] of Object.entries(a)) e.setAttribute(k, v);
+  return e;
+};
+const fmtBytes = b => {
+  const s = b < 0 ? '-' : '';
+  b = Math.abs(b);
+  if (b >= 1e9) return s + (b / 1e9).toFixed(2) + ' GB';
+  if (b >= 1e6) return s + (b / 1e6).toFixed(2) + ' MB';
+  if (b >= 1e3) return s + (b / 1e3).toFixed(1) + ' kB';
+  return s + b + ' B';
+};
+const fmtSecs = v => v >= 60 ? (v / 60).toFixed(1) + ' min' : v.toFixed(1) + ' s';
+const fmtInt  = v => v.toLocaleString('en-US');
+
+// A line chart. One y-scale only: two measures of different magnitude get two
+// charts rather than a second axis.
+function lineChart(host, tip, legendHost, series, fmt) {
+  host.querySelectorAll('svg').forEach(n => n.remove());
+  legendHost.textContent = '';
+  const drawn = series.filter(s => s.points.length);
+  if (!drawn.length) { host.insertAdjacentHTML('afterbegin',
+    '<p class="note">no data yet</p>'); return; }
+
+  // Room on the right for the direct labels the relief rule requires.
+  const W = 1000, H = 320, m = { t: 14, r: 104, b: 52, l: 62 };
+  const xs = drawn.flatMap(s => s.points.map(p => p[0]));
+  const ys = drawn.flatMap(s => s.points.map(p => p[1]));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y1 = Math.max(...ys, 1), y0 = Math.min(0, ...ys);
+  const px = v => m.l + (x1 === x0 ? 0 : (v - x0) / (x1 - x0)) * (W - m.l - m.r);
+  const py = v => H - m.b - (y1 === y0 ? 0 : (v - y0) / (y1 - y0)) * (H - m.t - m.b);
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+
+  // Recessive grid and axis ticks.
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * i / 4, y = py(v);
+    svg.append(el('line', { x1: m.l, x2: W - m.r, y1: y, y2: y,
+      stroke: 'var(--grid)', 'stroke-width': 1 }));
+    const t = el('text', { x: m.l - 10, y: y + 4, 'text-anchor': 'end',
+      fill: 'var(--text-muted)', 'font-size': 12 });
+    t.textContent = fmt(v);
+    svg.append(t);
+  }
+  const step = Math.max(1, Math.ceil((x1 - x0 + 1) / 12));
+  for (let v = x0; v <= x1; v += step) {
+    const t = el('text', { x: px(v), y: H - 28, 'text-anchor': 'middle',
+      fill: 'var(--text-muted)', 'font-size': 12 });
+    t.textContent = v;
+    svg.append(t);
+  }
+  const xl = el('text', { x: (m.l + W - m.r) / 2, y: H - 6, 'text-anchor': 'middle',
+    fill: 'var(--text-secondary)', 'font-size': 12 });
+  xl.textContent = 'epoch';
+  svg.append(xl);
+
+  for (const s of drawn) {
+    const d = s.points.map((p, i) =>
+      `${i ? 'L' : 'M'}${px(p[0]).toFixed(1)} ${py(p[1]).toFixed(1)}`).join(' ');
+    svg.append(el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2,
+      'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    // A single point would be invisible as a path.
+    if (s.points.length === 1) {
+      const p = s.points[0];
+      svg.append(el('circle', { cx: px(p[0]), cy: py(p[1]), r: 4, fill: s.color,
+        stroke: 'var(--surface-1)', 'stroke-width': 2 }));
+    }
+
+    // Direct label at the series end: identity never rests on color alone.
+    const last = s.points[s.points.length - 1];
+    const lab = el('text', { x: px(last[0]) + 8, y: py(last[1]) + 4, fill: s.color,
+      'font-size': 12, 'font-weight': 600 });
+    lab.textContent = s.label;
+    svg.append(lab);
+  }
+
+  const cross = el('line', { y1: m.t, y2: H - m.b, stroke: 'var(--text-muted)',
+    'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
+  svg.append(cross);
+  const dots = drawn.map(s => {
+    const c = el('circle', { r: 4.5, fill: s.color, stroke: 'var(--surface-1)',
+      'stroke-width': 2, opacity: 0 });
+    svg.append(c);
+    return c;
+  });
+
+  host.insertBefore(svg, tip);
+
+  const hide = () => {
+    cross.setAttribute('opacity', 0);
+    dots.forEach(d => d.setAttribute('opacity', 0));
+    tip.style.opacity = 0;
+  };
+  svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('pointermove', ev => {
+    const r = svg.getBoundingClientRect();
+    const vx = (ev.clientX - r.left) / r.width * W;
+    let epoch = Math.round(x0 + (x1 === x0 ? 0
+      : (vx - m.l) / (W - m.l - m.r) * (x1 - x0)));
+    epoch = Math.min(x1, Math.max(x0, epoch));
+
+    cross.setAttribute('x1', px(epoch));
+    cross.setAttribute('x2', px(epoch));
+    cross.setAttribute('opacity', 1);
+
+    let rows = '';
+    drawn.forEach((s, i) => {
+      const pt = s.points.find(p => p[0] === epoch);
+      if (!pt) { dots[i].setAttribute('opacity', 0); return; }
+      dots[i].setAttribute('cx', px(pt[0]));
+      dots[i].setAttribute('cy', py(pt[1]));
+      dots[i].setAttribute('opacity', 1);
+      rows += `<div class="row"><span class="swatch" style="background:${s.color}">
+        </span>${s.label} <b style="display:inline;color:var(--text-primary)">
+        ${fmt(pt[1])}</b></div>`;
+    });
+    tip.innerHTML = `<b>epoch ${epoch}</b>${rows}`;
+    tip.style.opacity = 1;
+    const left = px(epoch) / W * r.width;
+    tip.style.left = Math.min(r.width - tip.offsetWidth - 8,
+      Math.max(0, left + 14)) + 'px';
+    tip.style.top = '8px';
+  });
+
+  for (const s of drawn) {
+    const sp = document.createElement('span');
+    sp.innerHTML = `<span class="swatch" style="background:${s.color}"></span>${s.name}`;
+    legendHost.append(sp);
+  }
+}
+
+// Two series per chart: the pair being compared, and nothing else.
+const UNIVERSE = [
+  { key: 'uni-tapd',  label: 'sqlite',   short: 'uni',  color: 'var(--series-1)', name: 'uni-tapd (sqlite)' },
+  { key: 'uni2-tapd', label: 'postgres', short: 'uni2', color: 'var(--series-2)', name: 'uni2-tapd (postgres)' },
+];
+const ROLES = [
+  { key: 'alice-tapd', label: 'minter',   short: 'alice', color: 'var(--series-1)', name: 'alice-tapd, minter (sqlite)' },
+  { key: 'bob-tapd',   label: 'receiver', short: 'bob',   color: 'var(--series-2)', name: 'bob-tapd, receiver (postgres)' },
+];
+const NODES = [...ROLES, ...UNIVERSE];
+const CASES = [
+  { key: 'mintV2', color: 'var(--series-1)' },
+  { key: 'sendV2', color: 'var(--series-2)' },
+  { key: 'sync',   color: 'var(--series-3)' },
+];
+
+function tile(k, v, d) {
+  return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>` +
+         (d ? `<div class="d">${d}</div>` : '') + '</div>';
+}
+
+fetch('epochs.json').then(r => r.json()).then(data => {
+  data.sort((a, b) => a.epoch - b.epoch);
+  const last = data[data.length - 1];
+  const green = data.filter(e => e.cases.every(c => c.status === 'pass')).length;
+
+  document.getElementById('sub').textContent =
+    `${data.length} epochs · ${green} fully green · tapd ${last.versions.tapd} · ` +
+    `lnd ${last.versions.lnd} · last run ${last.finished_at}`;
+
+  const sumDelta = k => data.reduce((a, e) =>
+    a + ((e.delta[k] && e.delta[k].db_bytes) || 0), 0);
+  const sqliteGrowth = sumDelta('uni-tapd');
+  const pgGrowth = sumDelta('uni2-tapd');
+  const ratio = sqliteGrowth > 0 ? (pgGrowth / sqliteGrowth) : null;
+
+  const totalDb = Object.values(last.after.tapd)
+    .reduce((a, n) => a + n.db_bytes, 0);
+  const totalAssets = Object.values(last.after.tapd)
+    .reduce((a, n) => a + n.assets, 0);
+  const totalProofs = Object.values(last.after.tapd)
+    .reduce((a, n) => a + n.proofs_bytes, 0);
+  document.getElementById('tiles').innerHTML =
+    tile('epochs', data.length, `${green} with every case passing`) +
+    tile('last epoch', fmtSecs(last.duration_s), `minter ${last.roles.minter}`) +
+    tile('asset rows', fmtInt(totalAssets),
+      'summed per node; a transferred asset counts on both') +
+    tile('db total', fmtBytes(totalDb), 'all nodes, as tapd reports it') +
+    tile('proof files', fmtBytes(totalProofs), 'on-disk archive, outside the db') +
+    tile('universe growth',
+      ratio === null ? 'n/a' : ratio.toFixed(2) + '\u00d7',
+      'postgres vs sqlite, cumulative over the series');
+
+  const dur = CASES.map(c => ({
+    name: c.key, label: c.key, color: c.color,
+    points: data.flatMap(e => {
+      const f = e.cases.find(x => x.name === c.key);
+      return f && f.status === 'pass' ? [[e.epoch, f.duration_s]] : [];
+    }),
+  }));
+  const mk = (group, pick) => group.map(n => ({
+    name: n.name, label: n.label, color: n.color,
+    points: data.flatMap(e => {
+      const v = pick(e, n.key);
+      return v === undefined || v === null ? [] : [[e.epoch, v]];
+    }),
+  }));
+
+  // The comparison holds only while both universe servers carry the same
+  // content. Say so on the page when they do not.
+  const bad = data.filter(e =>
+    e.after.tapd['uni-tapd'].universe_roots !==
+    e.after.tapd['uni2-tapd'].universe_roots);
+  if (bad.length) {
+    const d = document.getElementById('diverged');
+    d.hidden = false;
+    d.style.color = 'var(--critical)';
+    d.textContent = `The two universe servers held different content in ` +
+      `${bad.length} of ${data.length} epochs (${bad.map(e => e.epoch).join(', ')}). ` +
+      `The comparison is not valid for those epochs.`;
+  }
+
+  const dbOf    = (e, k) => e.after.tapd[k] && e.after.tapd[k].db_bytes;
+  const growthOf = (e, k) => e.delta[k] && e.delta[k].db_bytes;
+  const assetsOf = (e, k) => e.after.tapd[k] && e.after.tapd[k].assets;
+  const draw = (id, group, pick, fmt) => lineChart(
+    document.getElementById('p-' + id), document.getElementById('t-' + id),
+    document.getElementById('lg-' + id), mk(group, pick), fmt);
+
+  lineChart(document.getElementById('p-dur'), document.getElementById('t-dur'),
+    document.getElementById('lg-dur'), dur, fmtSecs);
+  draw('uni',    UNIVERSE, dbOf,     fmtBytes);
+  draw('unid',   UNIVERSE, growthOf, fmtBytes);
+  draw('db',     ROLES,    dbOf,     fmtBytes);
+  draw('assets', ROLES,    assetsOf, fmtInt);
+
+  const head = ['epoch', 'finished', 'total', ...CASES.map(c => c.key),
+    ...NODES.map(n => n.short + ' db'),
+    ...ROLES.map(n => n.short + ' assets'),
+    ...UNIVERSE.map(n => n.short + ' roots')];
+  const rows = data.slice().reverse().map(e => {
+    const cs = CASES.map(c => {
+      const f = e.cases.find(x => x.name === c.key);
+      if (!f) return '<td class="fail">not run</td>';
+      return f.status === 'pass'
+        ? `<td class="pass">${fmtSecs(f.duration_s)}</td>`
+        : `<td class="fail">${f.status}</td>`;
+    });
+    return '<tr>' +
+      `<td>${e.epoch}</td><td>${e.finished_at.replace('T', ' ').replace('Z', '')}</td>` +
+      `<td>${fmtSecs(e.duration_s)}</td>` +
+      cs.join('') +
+      NODES.map(n => `<td>${fmtBytes(e.after.tapd[n.key].db_bytes)}</td>`).join('') +
+      ROLES.map(n => `<td>${fmtInt(e.after.tapd[n.key].assets)}</td>`).join('') +
+      UNIVERSE.map(n => `<td>${fmtInt(e.after.tapd[n.key].universe_roots)}</td>`).join('') +
+      '</tr>';
+  });
+  document.getElementById('table').innerHTML =
+    `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>` +
+    `<tbody>${rows.join('')}</tbody></table>`;
+}).catch(err => {
+  document.getElementById('sub').textContent = 'could not load epochs.json: ' + err;
+});
+</script>
+</body>
+</html>
