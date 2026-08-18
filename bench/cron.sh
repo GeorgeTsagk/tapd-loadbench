@@ -4,7 +4,12 @@
 # schedule with no one watching.
 #
 # Install with:
-#   crontab -l 2>/dev/null | { cat; echo "23 */6 * * * $PWD/bench/cron.sh"; } | crontab -
+#   crontab -l 2>/dev/null | { cat; echo "23 * * * * $PWD/bench/cron.sh"; } | crontab -
+#
+# Hourly. Epoch duration grows with accumulated state, so eventually an epoch
+# will not fit in the interval; epoch.sh holds a lock and the next fire skips
+# rather than overlapping, so the effective rate drops instead of corrupting a
+# run. Watch for "another epoch is running, skipping" in the logs.
 set -uo pipefail
 
 # cron gives a minimal environment. Everything this script shells out to has to
