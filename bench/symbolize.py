@@ -8,7 +8,9 @@ for anything the page does not show.
 """
 import json, os, re, subprocess, sys, pathlib
 
-TOP_N = 90
+# The site serves this file out of the repository, so every render commits a
+# fresh copy. Keep it small: the tail of a profile is noise anyway.
+TOP_N = 45
 PROFILES = {"heap": "bytes", "allocs": "bytes", "goroutine": "count"}
 ROW = re.compile(r"^\s*(-?[\d.]+)(\w*)\s+([\d.]+)%\s+([\d.]+)%\s+(-?[\d.]+)(\w*)\s+([\d.]+)%\s+(.*)$")
 UNITS = {"": 1, "B": 1, "b": 1, "kB": 1000, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
@@ -178,6 +180,14 @@ def main():
                 entry["growth"] = [r for r in d if r["flat"] != 0][:TOP_N]
             node_out[prof] = entry
         result["nodes"][node] = node_out
+
+    # Stacks are only worth carrying for the groups anyone will look at.
+    for node in result["nodes"].values():
+        g = node.get("goroutine")
+        if g:
+            for i, row in enumerate(g["functions"]):
+                if i >= 20:
+                    row.pop("stack", None)
 
     out_path.write_text(json.dumps(result, separators=(",", ":")))
     tot = sum(len(p.get("functions", [])) for n in result["nodes"].values() for p in n.values())
