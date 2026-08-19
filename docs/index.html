@@ -242,15 +242,25 @@
   </section>
 
   <section class="card">
-    <span class="eyebrow">By role</span>
-    <h2>Resident memory after each epoch</h2>
-    <p class="note">Sampled once on each node when the epoch's cases have finished,
-      so it is where memory settles after the work rather than a peak during it.
-      Taken from the container's cgroup, less inactive page cache. The records also
-      carry <code>mem_peak_bytes</code>, a high water mark since the container
-      started, which keeps climbing if something leaks.</p>
-    <div class="legend" id="lg-mem"></div>
-    <div class="plot" id="p-mem"><div class="tip" id="t-mem"></div></div>
+    <span class="eyebrow">Memory &middot; minter</span>
+    <h2>alice-tapd memory</h2>
+    <p class="note">Resident set sampled once after the epoch's cases finish, so it
+      is where memory settles rather than a peak during the run. The high water mark
+      is <code>memory.peak</code> from the container's cgroup: it cannot be reset
+      without root, so it only ever rises, and a mark that keeps climbing epoch after
+      epoch is the leak signal. Split from the receiver because the two differ by
+      roughly four times and would flatten each other on a shared scale.</p>
+    <div class="legend" id="lg-mema"></div>
+    <div class="plot" id="p-mema"><div class="tip" id="t-mema"></div></div>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">Memory &middot; receiver</span>
+    <h2>bob-tapd memory</h2>
+    <p class="note">Same measurements on the receiving node, which does no minting
+      and holds far fewer assets.</p>
+    <div class="legend" id="lg-memb"></div>
+    <div class="plot" id="p-memb"><div class="tip" id="t-memb"></div></div>
   </section>
 
   <section class="card">
@@ -509,8 +519,23 @@ function render(data) {
   const dbOf = (e, k) => e.after.tapd[k] && e.after.tapd[k].db_bytes;
   const growthOf = (e, k) => e.delta[k] && e.delta[k].db_bytes;
   const assetsOf = (e, k) => e.after.tapd[k] && e.after.tapd[k].assets;
-  const memOf = (e, k) => (e.after.containers || {})[k]
-    ? e.after.containers[k].mem_bytes : null;
+  const containerField = (e, k, f) => {
+    const c = (e.after.containers || {})[k];
+    // Zero means the field predates this metric, not a real reading of nothing.
+    return c && c[f] ? c[f] : null;
+  };
+  const memSeries = (key) => [
+    { name: 'resident after run', label: 'resident', color: 'var(--series-1)',
+      points: data.flatMap(e => {
+        const v = containerField(e, key, 'mem_bytes');
+        return v === null ? [] : [[e.epoch, v]];
+      }) },
+    { name: 'high water mark since start', label: 'high water', color: 'var(--series-2)',
+      points: data.flatMap(e => {
+        const v = containerField(e, key, 'mem_peak_bytes');
+        return v === null ? [] : [[e.epoch, v]];
+      }) },
+  ];
   const draw = (id, group, pick, fmt) => lineChart(
     document.getElementById('p-' + id), document.getElementById('t-' + id),
     document.getElementById('lg-' + id), mk(group, pick), fmt);
@@ -520,7 +545,10 @@ function render(data) {
   draw('uni', UNIVERSE, dbOf, fmtBytes);
   draw('unid', UNIVERSE, growthOf, fmtBytes);
   draw('db', ROLES, dbOf, fmtBytes);
-  draw('mem', ROLES, memOf, fmtBytes);
+  lineChart(document.getElementById('p-mema'), document.getElementById('t-mema'),
+    document.getElementById('lg-mema'), memSeries('alice-tapd'), fmtBytes);
+  lineChart(document.getElementById('p-memb'), document.getElementById('t-memb'),
+    document.getElementById('lg-memb'), memSeries('bob-tapd'), fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
 
   const head = ['epoch', 'finished (UTC)', 'total', ...CASES.map(c => c.key),
