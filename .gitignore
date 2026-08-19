@@ -8,6 +8,12 @@ bench/creds/
 # The load generator is 85MB and built from a separate repo.
 bench/bin/loadtest
 
+# Symbolized profiles: regenerated from logs/ on every render, and they rewrite
+# wholesale each time, so committing them would bloat history for no gain. The
+# published site serves them; git does not carry them.
+docs/profiles.json
+
 # Per-epoch logs are large and local. data/epochs.jsonl is the record that
 # gets committed.
 logs/
+bench/bin/tapd-symbols

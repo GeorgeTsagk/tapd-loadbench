@@ -57,6 +57,38 @@
   }
   .bar.muted .fill { opacity: .45; }
   .bar.muted .lbl, .bar.muted .val { color: var(--ink-3); }
+
+  input[type="search"] {
+    font: inherit; font-size: .8125rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: .34rem .6rem; min-width: 13rem;
+  }
+  input[type="search"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Sortable headers. The sorted column is marked with a caret rather than
+     colour alone. */
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th[data-sort]:hover { color: var(--ink); }
+  th.sorted::after { content: " \25BE"; color: var(--accent); }
+  th.sorted.asc::after { content: " \25B4"; }
+
+  /* Magnitude is drawn behind the value, so the table reads as a chart without
+     needing a separate one. */
+  td.mag { position: relative; }
+  td.mag .b {
+    position: absolute; left: 0; top: 3px; bottom: 3px;
+    background: var(--series-1); opacity: .18; border-radius: 0 3px 3px 0;
+  }
+  td.mag span { position: relative; }
+  td.neg .b { background: var(--good); }
+  td.pos .b { background: var(--crit); }
+  td.name { max-width: 42rem; overflow: hidden; text-overflow: ellipsis;
+            font-size: .75rem; }
+  tr.has-stack { cursor: pointer; }
+  tr.stack td {
+    font-size: .6875rem; color: var(--ink-3); white-space: pre-wrap;
+    padding-top: 0; padding-bottom: .5rem;
+  }
 </style>
 </head>
 <body>
@@ -75,6 +107,19 @@
       <option value="alice-tapd">alice-tapd &mdash; minter</option>
       <option value="bob-tapd">bob-tapd &mdash; receiver</option>
     </select>
+    <label for="prof">Profile</label>
+    <select id="prof">
+      <option value="heap">heap &mdash; memory held now</option>
+      <option value="allocs">allocs &mdash; memory ever allocated</option>
+      <option value="goroutine">goroutines</option>
+      <option value="growth">growth &mdash; heap since baseline</option>
+    </select>
+    <label for="grp">Group</label>
+    <select id="grp">
+      <option value="fn">by function</option>
+      <option value="pkg">by package</option>
+    </select>
+    <input id="filter" type="search" placeholder="filter by name..." autocomplete="off">
     <span class="ctx" id="ctx"></span>
   </section>
 
@@ -98,6 +143,34 @@
       before and after the run, so it is CPU actually burned by this epoch rather
       than an instantaneous sample.</p>
     <div class="bars" id="cpu-bars"></div>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">Where the resources go</span>
+    <h2 id="prof-h">Profile</h2>
+    <div class="hero"><span class="n" id="prof-hero">&mdash;</span><span class="u" id="prof-sub"></span></div>
+    <p class="note" id="prof-note"></p>
+    <div class="scroll"><table id="prof-tbl"><thead><tr>
+      <th data-sort="name">name</th>
+      <th data-sort="flat" class="sorted">flat</th>
+      <th>share</th>
+      <th data-sort="cum">cumulative</th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="note" id="prof-empty" hidden></p>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">RPC surface</span>
+    <h2 id="grpc-h">gRPC methods called</h2>
+    <p class="note">From the per-method histogram that <code>--prometheus.perfhistograms</code>
+      adds. Counts and totals are cumulative since the daemon started, so they show
+      which part of the API the load actually exercises.</p>
+    <div class="scroll"><table id="grpc-tbl"><thead><tr>
+      <th data-sort="name">method</th>
+      <th data-sort="calls" class="sorted">calls</th>
+      <th data-sort="mean">mean</th>
+      <th data-sort="total">total</th>
+    </tr></thead><tbody></tbody></table></div>
   </section>
 
   <footer id="footer"></footer>
@@ -151,6 +224,176 @@ function drawBars(host, rows, fmt, color) {
 }
 
 let LATEST = null;
+
+let PROFILES = null;
+const sortState = { prof: { key: 'flat', asc: false }, grpc: { key: 'calls', asc: false } };
+
+const fmtCount = n => n.toLocaleString('en-US');
+
+// One renderer for both tables: they differ only in their columns.
+function renderTable(tblId, rows, cols, state) {
+  const tbl = document.getElementById(tblId);
+  const tbody = tbl.querySelector('tbody');
+  tbody.textContent = '';
+  tbl.querySelectorAll('th[data-sort]').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.sort === state.key);
+    th.classList.toggle('asc', th.dataset.sort === state.key && state.asc);
+  });
+
+  const dir = state.asc ? 1 : -1;
+  rows = rows.slice().sort((a, b) => {
+    const k = state.key;
+    if (k === 'name') return dir * String(a.name).localeCompare(String(b.name));
+    return dir * ((a[k] || 0) - (b[k] || 0));
+  });
+
+  const max = Math.max(...rows.map(r => Math.abs(r[cols.magKey] || 0)), 1);
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    if (r.stack && r.stack.length) tr.className = 'has-stack';
+
+    const name = document.createElement('td');
+    name.className = 'name';
+    // Names come from a binary and are not markup; insert as text.
+    name.textContent = r.name;
+    name.title = r.name;
+    tr.append(name);
+
+    for (const c of cols.cells) {
+      const td = document.createElement('td');
+      if (c.mag) {
+        td.className = 'mag' + (r[c.key] < 0 ? ' neg' : (cols.signed ? ' pos' : ''));
+        const b = document.createElement('div');
+        b.className = 'b';
+        b.style.width = (Math.abs(r[c.key] || 0) / max * 100).toFixed(1) + '%';
+        td.append(b);
+        const sp = document.createElement('span');
+        sp.textContent = c.fmt(r[c.key]);
+        td.append(sp);
+      } else {
+        td.textContent = c.fmt(r[c.key], r);
+      }
+      tr.append(td);
+    }
+    tbody.append(tr);
+
+    if (r.stack && r.stack.length) {
+      const sr = document.createElement('tr');
+      sr.className = 'stack';
+      sr.hidden = true;
+      const td = document.createElement('td');
+      td.colSpan = 1 + cols.cells.length;
+      td.textContent = r.stack.join('\n');
+      sr.append(td);
+      tbody.append(sr);
+      tr.addEventListener('click', () => { sr.hidden = !sr.hidden; });
+    }
+  }
+  return rows.length;
+}
+
+function renderProfile() {
+  const node = document.getElementById('node').value;
+  const kind = document.getElementById('prof').value;
+  const group = document.getElementById('grp').value;
+  const q = document.getElementById('filter').value.trim().toLowerCase();
+  const empty = document.getElementById('prof-empty');
+  const notes = {
+    heap: 'Live heap by allocation site: what the daemon is holding right now. ' +
+          'Sampled by the Go runtime at one sample per 512 KB allocated.',
+    allocs: 'Every allocation since the daemon started, so this shows churn rather ' +
+            'than retention. A site can dominate here and hold nothing.',
+    goroutine: 'Goroutines grouped by the frame that identifies them. Every parked ' +
+               'goroutine sits in runtime.gopark, so the deepest tapd frame is used ' +
+               'instead of the top one. Click a row for its stack.',
+    growth: 'Heap difference against the oldest profile on disk, so positive means ' +
+            'the site is retaining more than it was. This is the leak view.',
+  };
+  document.getElementById('prof-note').textContent = notes[kind] || '';
+  document.getElementById('prof-h').textContent = node + ' \u2014 ' +
+    document.getElementById('prof').selectedOptions[0].textContent.split(' \u2014 ')[0];
+
+  if (!PROFILES || !PROFILES.nodes[node]) {
+    empty.hidden = false;
+    empty.textContent = 'No profiles captured for this node yet.';
+    document.getElementById('prof-tbl').querySelector('tbody').textContent = '';
+    document.getElementById('prof-hero').textContent = 'n/a';
+    document.getElementById('prof-sub').textContent = '';
+    return;
+  }
+
+  const src = kind === 'growth' ? PROFILES.nodes[node].heap : PROFILES.nodes[node][kind];
+  let list, unit;
+  if (!src) { list = []; unit = 'count'; }
+  else if (kind === 'growth') { list = src.growth || []; unit = src.unit; }
+  else if (group === 'pkg') { list = src.packages || []; unit = src.unit; }
+  else { list = src.functions || []; unit = src.unit; }
+
+  const fmt = unit === 'bytes' ? fmtBytes : fmtCount;
+  let rows = list.map(r => ({
+    name: group === 'pkg' && kind !== 'growth' ? r.pkg : r.fn,
+    flat: r.flat, cum: r.cum !== undefined ? r.cum : r.flat, stack: r.stack,
+  }));
+  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+
+  const total = rows.reduce((a, r) => a + Math.abs(r.flat), 0);
+  document.getElementById('prof-hero').textContent =
+    kind === 'goroutine' ? fmtCount(total) : fmt(total);
+  document.getElementById('prof-sub').textContent =
+    (kind === 'goroutine' ? 'goroutines' : 'across ' + rows.length + ' entries') +
+    (q ? ' matching "' + q + '"' : '') +
+    (kind === 'growth' ? ' since epoch ' + PROFILES.baseline_epoch : '');
+
+  const n = renderTable('prof-tbl', rows, {
+    magKey: 'flat', signed: kind === 'growth',
+    cells: [
+      { key: 'flat', mag: true, fmt: v => (kind === 'growth' && v > 0 ? '+' : '') + fmt(v) },
+      { key: 'flat', fmt: (v) => total ? (Math.abs(v) / total * 100).toFixed(1) + '%' : '0%' },
+      { key: 'cum', fmt: v => fmt(v) },
+    ],
+  }, sortState.prof);
+
+  empty.hidden = n > 0;
+  if (!n) {
+    empty.textContent = kind === 'growth'
+      ? 'No growth data yet: this needs profiles from at least two epochs. ' +
+        PROFILES.profiles_available + ' captured so far.'
+      : 'Nothing matches that filter.';
+  }
+}
+
+function renderGrpc() {
+  const node = document.getElementById('node').value;
+  const q = document.getElementById('filter').value.trim().toLowerCase();
+  const g = ((LATEST.after.tapd || {})[node] || {}).grpc || {};
+  document.getElementById('grpc-h').textContent = node + ' \u2014 gRPC methods called';
+  let rows = Object.entries(g).map(([m, v]) => ({
+    name: m, calls: v.calls, mean: v.mean_ms, total: v.total_s,
+  }));
+  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  renderTable('grpc-tbl', rows, {
+    magKey: 'total',
+    cells: [
+      { key: 'calls', fmt: v => fmtCount(v) },
+      { key: 'mean', fmt: v => v.toFixed(2) + ' ms' },
+      { key: 'total', mag: true, fmt: v => v < 1 ? (v * 1000).toFixed(0) + ' ms' : v.toFixed(2) + ' s' },
+    ],
+  }, sortState.grpc);
+}
+
+function wireSorting() {
+  for (const [tblId, key] of [['prof-tbl', 'prof'], ['grpc-tbl', 'grpc']]) {
+    document.getElementById(tblId).querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const st = sortState[key];
+        if (st.key === th.dataset.sort) st.asc = !st.asc;
+        else { st.key = th.dataset.sort; st.asc = false; }
+        key === 'prof' ? renderProfile() : renderGrpc();
+      });
+    });
+  }
+}
+
 
 function render(node) {
   const d = LATEST;
@@ -210,14 +453,33 @@ const sel = document.getElementById('node');
 // Remember the choice so a reload does not snap back to the minter.
 const saved = (() => { try { return localStorage.getItem('tapbench.node'); } catch { return null; } })();
 if (saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
+function renderAll() {
+  render(sel.value);
+  renderProfile();
+  renderGrpc();
+}
+
 sel.addEventListener('change', () => {
   try { localStorage.setItem('tapbench.node', sel.value); } catch { /* private mode */ }
-  render(sel.value);
+  renderAll();
 });
+for (const id of ['prof', 'grp']) {
+  document.getElementById(id).addEventListener('change', renderProfile);
+}
+let t;
+document.getElementById('filter').addEventListener('input', () => {
+  clearTimeout(t);
+  t = setTimeout(() => { renderProfile(); renderGrpc(); }, 120);
+});
+wireSorting();
 
-fetch('latest.json').then(r => r.json()).then(d => {
+Promise.all([
+  fetch('latest.json').then(r => r.json()),
+  fetch('profiles.json').then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([d, p]) => {
   LATEST = d;
-  render(sel.value);
+  PROFILES = p;
+  renderAll();
 }).catch(err => {
   document.getElementById('ctx').textContent = 'could not load latest.json: ' + err;
 });

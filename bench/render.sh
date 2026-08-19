@@ -41,6 +41,16 @@ jq -s '[ .[] | {
     delta: (.delta | map_values({db_bytes}))
   } ] | sort_by(.epoch)' "$DATA" > "$OUT/epochs.json"
 
+# Symbolize the captured pprof profiles into JSON. Needs the Go toolchain and a
+# copy of the tapd binary the profiles came from; skipped cleanly without either,
+# so a machine that only renders the site still works.
+if command -v go >/dev/null 2>&1 && [[ -f "$ROOT/bench/bin/tapd-symbols" ]]; then
+  python3 "$ROOT/bench/symbolize.py" "$ROOT" "$ROOT/bench/bin/tapd-symbols" \
+    "$OUT/profiles.json" || echo "symbolize failed (continuing)"
+else
+  echo "skipping profile symbolization (no go toolchain or no symbol binary)"
+fi
+
 # The detail page shares the series page styling. Generate the stylesheet from
 # index.html rather than keeping a second copy that can drift.
 python3 - "$OUT" <<'CSSEOF'

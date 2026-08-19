@@ -117,6 +117,13 @@ FINISHED=$(date -u +%FT%TZ)
 log "collecting after snapshot"
 AFTER=$(snapshot)
 
+# Profiles come after the work, so they describe the state the epoch left behind.
+# Raw protobuf, so two epochs can be diffed with go tool pprof -base.
+for n in $PPROF_NODES; do
+  capture_profiles "$n" "$RUNDIR/pprof"
+done
+log "captured profiles: $(ls "$RUNDIR/pprof" 2>/dev/null | wc -l) files"
+
 # Per-node growth for this epoch. This is the headline number: absolute db size
 # is dominated by each backend's fixed baseline, the delta is what compares.
 DELTA=$(jq -cn --argjson b "$BEFORE" --argjson a "$AFTER" '

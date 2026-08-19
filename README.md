@@ -159,6 +159,34 @@ backends are declared.
 overlapping cron fires skip rather than interleave. A failed case still gets
 recorded, because a failed epoch is data, and then the script exits non-zero.
 
+## Profiling
+
+`alice-tapd` and `bob-tapd` run a locally built image: pinned v0.8.1 plus a single
+added import, `_ "net/http/pprof"`. Without it tapd accepts `--profile`, starts an
+HTTP listener, and serves nothing: the listener has only a catch-all redirect to
+`/debug/pprof`, which nothing handles, so every request bounces to itself. The
+patched binary reports `commit=v0.8.1-dirty`, so profiled epochs identify
+themselves in `versions.tapd`. Rebuild with `bench/build-pprof-image.sh`.
+
+Each epoch captures heap, allocs and goroutine profiles per node into
+`logs/epoch-NNNNN/pprof/`, as protobuf so `go tool pprof -base` can diff two
+epochs. Measured cost: about 6 ms of stop-the-world per epoch against a 220 s
+epoch, and roughly 45 KB per epoch on disk. Heap sampling itself was already
+running, since `MemProfileRate` defaults to one sample per 512 KB.
+
+`bench/symbolize.py` turns the newest profiles into `docs/profiles.json` for the
+site, and diffs them against the oldest on disk for the growth view. Symbol names
+survive the release build's `-s -w` because Go keeps its own `pclntab`, so no
+special build is needed.
+
+The node page browses all of it: node, profile type, and grouping by function or
+by package, with a filter and sortable columns. Grouping by package is the
+subsystem view, since tapd sets no pprof labels and package paths are the closest
+thing to a named subsystem.
+
+`--prometheus.perfhistograms` is also on, which adds per-method gRPC latency
+histograms; each epoch records calls, total time and mean per method.
+
 ## Site
 
 [`docs/`](docs/) is a static page over `data/epochs.jsonl`, no build step. The raw

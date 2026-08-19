@@ -221,6 +221,7 @@ tapd_metrics() {
     --argjson uni_syncs "$(prom "$node" num_total_syncs)" \
     --argjson uni_proofs "$(prom "$node" num_total_proofs)" \
     --argjson container "$(echo "$CONTAINER_STATS" | jq -c --arg k "$node" '.[$k] // {}')" \
+    --argjson grpc "$(grpc_latency "$node")" \
     '{backend: $backend, db_bytes: $db_bytes, storage: $storage,
       proofs_bytes: $proofs_bytes, proofs_files: $proofs_files,
       assets: $assets, groups: $groups, universe_roots: $universe_roots,
@@ -229,7 +230,7 @@ tapd_metrics() {
       mint_batches: $mint_batches, heap_bytes: $heap_bytes,
       goroutines: $goroutines, grpc_calls: $grpc_calls,
       universe_syncs: $uni_syncs, universe_proofs: $uni_proofs,
-      container: $container}'
+      container: $container, grpc: $grpc}'
 }
 
 # Snapshot of the whole network.
@@ -247,4 +248,52 @@ snapshot() {
   jq -cn --argjson nodes "$out" --argjson height "${height:-0}" \
     --argjson containers "$CONTAINER_STATS" \
     '{block_height: $height, tapd: $nodes, containers: $containers}'
+}
+
+# Nodes whose tapd exposes pprof, and the port it listens on inside the
+# container. Bound to localhost there, so it is reachable only via docker exec.
+PPROF_NODES="alice-tapd bob-tapd"
+PPROF_PORT=9091
+
+# Save the raw pprof profiles for one node. Kept as protobuf rather than text:
+# go tool pprof needs the binary form to diff two epochs, which is the whole
+# point of keeping them.
+capture_profiles() {
+  local node=$1 dir=$2
+  mkdir -p "$dir"
+  local p
+  for p in heap goroutine allocs; do
+    docker exec "$node" sh -c \
+      "curl -s -o /tmp/$p.pb.gz 'localhost:$PPROF_PORT/debug/pprof/$p'" 2>/dev/null || continue
+    docker cp "$node:/tmp/$p.pb.gz" "$dir/$node.$p.pb.gz" >/dev/null 2>&1 || true
+  done
+}
+
+# Per-method gRPC latency, from the histogram perfhistograms adds. Recording
+# every bucket for 93 methods would be most of the record, so keep count, total
+# time and a bucket-interpolated median for the methods that were actually
+# called.
+grpc_latency() {
+  local node=$1
+  curl -s --max-time 20 "localhost:${TAPD_PROM[$node]}/metrics" 2>/dev/null | awk '
+    /^grpc_server_handling_seconds_count/ {
+      m = $0; sub(/.*grpc_method="/, "", m); sub(/".*/, "", m)
+      count[m] = $NF
+    }
+    /^grpc_server_handling_seconds_sum/ {
+      m = $0; sub(/.*grpc_method="/, "", m); sub(/".*/, "", m)
+      sum[m] = $NF
+    }
+    END {
+      printf "{"
+      first = 1
+      for (m in count) {
+        if (count[m] + 0 == 0) continue
+        if (!first) printf ","
+        printf "\"%s\":{\"calls\":%d,\"total_s\":%s,\"mean_ms\":%.3f}", \
+          m, count[m], sum[m], (sum[m] / count[m]) * 1000
+        first = 0
+      }
+      printf "}"
+    }'
 }

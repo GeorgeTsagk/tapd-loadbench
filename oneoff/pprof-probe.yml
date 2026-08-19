@@ -1,0 +1,55 @@
+# Throwaway node for measuring what pprof actually costs. Separate project,
+# removed after.
+services:
+  probe-lnd:
+    image: lightninglabs/lnd:v0.21.2-beta
+    container_name: probe-lnd
+    hostname: probe-lnd
+    networks: [regtest]
+    volumes: ["probe-lnd:/root/.lnd"]
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=probe-lnd"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--listen=0.0.0.0:9735"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=bitcoind"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333"
+      - "--tlsextradomain=probe-lnd"
+  probe:
+    image: tapd-v081-pprof:local
+    container_name: probe
+    hostname: probe
+    networks: [regtest]
+    user: "0:0"
+    volumes:
+      - "probe:/root/.tapd"
+      - "probe-lnd:/root/lnd"
+    depends_on: [probe-lnd]
+    command:
+      - "--network=regtest"
+      - "--debuglevel=info"
+      - "--rpclisten=0.0.0.0:10029"
+      - "--restlisten=0.0.0.0:8089"
+      - "--tlsextradomain=probe"
+      - "--lnd.host=probe-lnd:10009"
+      - "--lnd.tlspath=/root/lnd/tls.cert"
+      - "--lnd.macaroonpath=/root/lnd/data/chain/bitcoin/regtest/admin.macaroon"
+      - "--universe.public-access=rw"
+      - "--universe.sync-all-assets"
+      - "--profile=127.0.0.1:9091"
+      - "--prometheus.active"
+      - "--prometheus.listenaddr=0.0.0.0:8989"
+      - "--prometheus.perfhistograms"
+networks:
+  regtest: { external: true, name: tapbench_regtest }
+volumes:
+  probe-lnd:
+  probe:
