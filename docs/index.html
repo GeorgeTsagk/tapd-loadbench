@@ -154,6 +154,23 @@
   .tip .row b { color: var(--ink); font-weight: 500;
                 font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
 
+  /* One-off experiment: marked out from the standing series so nobody mistakes
+     it for part of the history. */
+  .oneoff { border-left: 3px solid var(--accent); }
+  .oneoff .tag {
+    display: inline-block; font-family: "IBM Plex Mono", monospace;
+    font-size: .625rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--surface); background: var(--accent);
+    padding: .1rem .4rem; border-radius: 4px; margin-bottom: .4rem;
+  }
+  .oneoff h2 { font-size: 1.125rem; }
+  .oneoff .cav {
+    font-size: .8125rem; color: var(--ink-2); margin: .55rem 0 0;
+    padding-top: .55rem; border-top: 1px solid var(--hairline);
+  }
+  .oneoff table { margin-top: .7rem; width: auto; }
+  .oneoff th, .oneoff td { padding: .3rem .8rem .3rem 0; border-bottom: none; }
+
   .scroll { overflow-x: auto; margin-top: .75rem; }
   table { border-collapse: collapse; width: 100%; font-size: .8125rem; }
   th, td { text-align: right; padding: .42rem .6rem; white-space: nowrap;
@@ -194,6 +211,10 @@
       universe have real volume in them.</p>
     <div class="meta" id="meta"></div>
   </header>
+
+  <!-- One-off experiment banner. Rendered only while docs/oneoff.json exists;
+       deleting that file removes the banner and nothing else changes. -->
+  <section class="card oneoff" id="oneoff" hidden></section>
 
   <section class="readout" id="readout"></section>
 
@@ -441,6 +462,36 @@ const cell = (k, v, d) =>
   `<div class="cell"><div class="k">${k}</div><div class="v">${v}</div>` +
   (d ? `<div class="d">${d}</div>` : '') + '</div>';
 
+// The one-off banner is independent of the series: it renders if the file is
+// there and is silently skipped if it is not.
+function renderOneOff() {
+  return fetch('oneoff.json', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(o => {
+      if (!o) return;
+      const el = document.getElementById('oneoff');
+      const rows = (o.runs || []).map(r => {
+        const faster = r.enumeration_ms / r.delta_ms;
+        return `<tr><td>${r.label}</td>` +
+          `<td class="num">${r.enumeration_ms.toLocaleString()} ms</td>` +
+          `<td class="num">${r.delta_ms.toLocaleString()} ms</td>` +
+          `<td class="num" style="color:${faster >= 1 ? 'var(--good)' : 'var(--crit)'}">` +
+          `${faster >= 1 ? faster.toFixed(2) + '\u00d7 faster' : (1 / faster).toFixed(2) + '\u00d7 slower'}</td></tr>`;
+      }).join('');
+      el.innerHTML =
+        '<span class="tag">one-off experiment</span>' +
+        `<h2>${o.headline}</h2>` +
+        `<p class="note">${o.detail}</p>` +
+        (rows ? '<div class="scroll"><table><thead><tr><th>run</th>' +
+          '<th>enumeration</th><th>delta</th><th></th></tr></thead>' +
+          `<tbody>${rows}</tbody></table></div>` : '') +
+        `<p class="cav">${o.caveat} ` +
+        `<a href="${o.pr}">PR #2202</a> &middot; measured ${o.measured_at.replace('T', ' ').replace('Z', ' UTC')}</p>`;
+      el.hidden = false;
+    })
+    .catch(() => { /* no banner, no problem */ });
+}
+
 function render(data) {
   data.sort((a, b) => a.epoch - b.epoch);
   const last = data[data.length - 1];
@@ -584,6 +635,8 @@ function render(data) {
 
 // The page is published two ways: served next to epochs.json, or with the data
 // inlined for a single-file host.
+renderOneOff();
+
 if (window.__EPOCHS__) {
   render(window.__EPOCHS__);
 } else {

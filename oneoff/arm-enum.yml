@@ -1,0 +1,17 @@
+# Arm A: force the pre-PR algorithm on the same binary.
+services:
+  prcli:
+    command:
+      - "--network=regtest"
+      - "--debuglevel=info,UNIV=debug,TSVR=debug"
+      - "--rpclisten=0.0.0.0:10029"
+      - "--restlisten=0.0.0.0:8089"
+      - "--tlsextradomain=prcli"
+      - "--lnd.host=prcli-lnd:10009"
+      - "--lnd.tlspath=/root/lnd/tls.cert"
+      - "--lnd.macaroonpath=/root/lnd/data/chain/bitcoin/regtest/admin.macaroon"
+      - "--allow-public-stats"
+      - "--universe.public-access=rw"
+      - "--universe.sync-all-assets"
+      - "--universe.syncinterval=20s"
+      - "--universe.no-delta-sync"

@@ -1,0 +1,170 @@
+# Temporary nodes for the PR #2202 one-off. Separate compose project joining the
+# existing network, so nothing in .ddp/ is touched. Torn down after the run.
+services:
+  prsrv-lnd:
+    image: lightninglabs/lnd:v0.21.2-beta
+    container_name: prsrv-lnd
+    hostname: prsrv-lnd
+    networks: [regtest]
+    restart: unless-stopped
+    volumes: ["prsrv-lnd:/root/.lnd"]
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=prsrv-lnd"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--listen=0.0.0.0:9735"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=bitcoind"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333"
+      - "--debuglevel=info"
+      - "--tlsextradomain=prsrv-lnd"
+
+  prcli-lnd:
+    image: lightninglabs/lnd:v0.21.2-beta
+    container_name: prcli-lnd
+    hostname: prcli-lnd
+    networks: [regtest]
+    restart: unless-stopped
+    volumes: ["prcli-lnd:/root/.lnd"]
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=prcli-lnd"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--listen=0.0.0.0:9735"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=bitcoind"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333"
+      - "--debuglevel=info"
+      - "--tlsextradomain=prcli-lnd"
+
+  prcli2-lnd:
+    image: lightninglabs/lnd:v0.21.2-beta
+    container_name: prcli2-lnd
+    hostname: prcli2-lnd
+    networks: [regtest]
+    restart: unless-stopped
+    volumes: ["prcli2-lnd:/root/.lnd"]
+    command:
+      - "--logdir=/root/.lnd"
+      - "--alias=prcli2-lnd"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--restlisten=0.0.0.0:8080"
+      - "--listen=0.0.0.0:9735"
+      - "--noseedbackup"
+      - "--bitcoin.active"
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--bitcoind.rpchost=bitcoind"
+      - "--bitcoind.rpcuser=lightning"
+      - "--bitcoind.rpcpass=lightning"
+      - "--bitcoind.zmqpubrawblock=tcp://bitcoind:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://bitcoind:28333"
+      - "--debuglevel=info"
+      - "--tlsextradomain=prcli2-lnd"
+
+  # Serves the universe. Holds a copy of the live universe, pulled from the
+  # v0.8.1 federation server before the measurement starts.
+  prsrv:
+    image: tapd-pr2202:local
+    container_name: prsrv
+    hostname: prsrv
+    networks: [regtest]
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - "prsrv:/root/.tapd"
+      - "prsrv-lnd:/root/lnd"
+    depends_on: [prsrv-lnd]
+    command:
+      - "--network=regtest"
+      - "--debuglevel=info,UNIV=debug,TSVR=debug"
+      - "--rpclisten=0.0.0.0:10029"
+      - "--restlisten=0.0.0.0:8089"
+      - "--tlsextradomain=prsrv"
+      - "--lnd.host=prsrv-lnd:10009"
+      - "--lnd.tlspath=/root/lnd/tls.cert"
+      - "--lnd.macaroonpath=/root/lnd/data/chain/bitcoin/regtest/admin.macaroon"
+      - "--allow-public-stats"
+      - "--allow-public-uni-proof-courier"
+      - "--universe.public-access=rw"
+      - "--universe.sync-all-assets"
+      - "--universe.syncinterval=20s"
+
+  # Syncs from prsrv. Its volume is wiped between arms so each run starts empty.
+  prcli:
+    image: tapd-pr2202:local
+    container_name: prcli
+    hostname: prcli
+    networks: [regtest]
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - "prcli:/root/.tapd"
+      - "prcli-lnd:/root/lnd"
+    depends_on: [prcli-lnd]
+    command:
+      - "--network=regtest"
+      - "--debuglevel=info,UNIV=debug,TSVR=debug"
+      - "--rpclisten=0.0.0.0:10029"
+      - "--restlisten=0.0.0.0:8089"
+      - "--tlsextradomain=prcli"
+      - "--lnd.host=prcli-lnd:10009"
+      - "--lnd.tlspath=/root/lnd/tls.cert"
+      - "--lnd.macaroonpath=/root/lnd/data/chain/bitcoin/regtest/admin.macaroon"
+      - "--allow-public-stats"
+      - "--universe.public-access=rw"
+      - "--universe.sync-all-assets"
+      - "--universe.syncinterval=20s"
+
+  prcli2:
+    image: tapd-pr2202:local
+    container_name: prcli2
+    hostname: prcli2
+    networks: [regtest]
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - "prcli2:/root/.tapd"
+      - "prcli2-lnd:/root/lnd"
+    depends_on: [prcli2-lnd]
+    command:
+      - "--network=regtest"
+      - "--debuglevel=info,UNIV=debug,TSVR=debug"
+      - "--rpclisten=0.0.0.0:10029"
+      - "--restlisten=0.0.0.0:8089"
+      - "--tlsextradomain=prcli2"
+      - "--lnd.host=prcli2-lnd:10009"
+      - "--lnd.tlspath=/root/lnd/tls.cert"
+      - "--lnd.macaroonpath=/root/lnd/data/chain/bitcoin/regtest/admin.macaroon"
+      - "--allow-public-stats"
+      - "--universe.public-access=rw"
+      - "--universe.sync-all-assets"
+      - "--universe.syncinterval=20s"
+      - "--universe.no-delta-sync"
+
+networks:
+  regtest:
+    external: true
+    name: tapbench_regtest
+
+volumes:
+  prcli2:
+  prcli2-lnd:
+  prsrv-lnd:
+  prcli-lnd:
+  prsrv:
+  prcli:
