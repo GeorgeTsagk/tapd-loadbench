@@ -129,7 +129,16 @@ DELTA=$(jq -cn --argjson b "$BEFORE" --argjson a "$AFTER" '
       universe_roots:($a.tapd[$k].universe_roots - $b.tapd[$k].universe_roots),
       universe_leaves:($a.tapd[$k].universe_leaves - $b.tapd[$k].universe_leaves),
       grpc_calls:    ($a.tapd[$k].grpc_calls    - $b.tapd[$k].grpc_calls)
-    }})')
+    }}) +
+  # CPU time is cumulative in the cgroup, so consumption for one epoch is the
+  # difference between the two snapshots. Memory is a level, not a total, and so
+  # has no delta.
+  { containers: (reduce (($a.containers // {}) | keys[]) as $k ({};
+      . + { ($k): {
+        cpu_usec:        (($a.containers[$k].cpu_usec        // 0) - ($b.containers[$k].cpu_usec        // 0)),
+        cpu_user_usec:   (($a.containers[$k].cpu_user_usec   // 0) - ($b.containers[$k].cpu_user_usec   // 0)),
+        cpu_system_usec: (($a.containers[$k].cpu_system_usec // 0) - ($b.containers[$k].cpu_system_usec // 0))
+      }})) }')
 
 RECORD=$(jq -cn \
   --argjson epoch "$EPOCH" \

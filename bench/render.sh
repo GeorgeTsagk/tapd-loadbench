@@ -41,6 +41,23 @@ jq -s '[ .[] | {
     delta: (.delta | map_values({db_bytes}))
   } ] | sort_by(.epoch)' "$DATA" > "$OUT/epochs.json"
 
+# The detail page shares the series page styling. Generate the stylesheet from
+# index.html rather than keeping a second copy that can drift.
+python3 - "$OUT" <<'CSSEOF'
+import pathlib, sys
+out = pathlib.Path(sys.argv[1])
+src = (out / "index.html").read_text()
+css = src[src.index("<style>") + len("<style>"):src.index("</style>")].strip()
+(out / "tokens.css").write_text(
+    "/* Generated from index.html by bench/render.sh. Do not edit. */\n" + css + "\n"
+)
+CSSEOF
+
+# The node detail page needs every field of the most recent epoch, which the
+# projected series above deliberately drops. Keep it in its own small file rather
+# than widening the series payload for one page.
+jq -s 'sort_by(.epoch) | last' "$DATA" > "$OUT/latest.json"
+
 # Fragment for a single-page host that supplies its own document wrapper (the
 # Artifact tool): keep <title> first so it is found, drop the outer tags, and
 # define the data before the main script so it never attempts a fetch.
@@ -54,9 +71,12 @@ data = (out / "epochs.json").read_text().strip()
 (out / "artifact.html").write_text(
     head
     + "<script>window.__EPOCHS__=" + data + ";</script>\n"
-    + body
+    # The artifact publishes one page, so a relative link to the detail page
+    # would 404 there. Keep the words, drop the anchor.
+    + body.replace('<a href="nodes.html">node snapshot</a>', 'node snapshot')
 )
 PYEOF
 
+echo "wrote $OUT/latest.json (epoch $(jq -r .epoch "$OUT/latest.json"))"
 echo "wrote $OUT/epochs.json ($(jq 'length' "$OUT/epochs.json") epochs, $(du -h "$OUT/epochs.json" | cut -f1))"
 echo "wrote $OUT/artifact.html ($(du -h "$OUT/artifact.html" | cut -f1))"

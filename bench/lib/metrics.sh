@@ -55,29 +55,64 @@ proofs_count() {
 # A rising restart count is the signal that a daemon is crash-looping, which
 # would otherwise hide behind passing test cases.
 ALL_CONTAINERS="bitcoind pg $LND_NODES $TAPD_NODES"
-
-# Resident memory straight from the container's cgroup, which is both cheaper and
-# more informative than docker stats.
+# Memory and CPU straight from the container's cgroup.
 #
-# mem_bytes matches what docker stats prints: memory.current less inactive page
-# cache, so a database's page cache does not read as daemon memory.
+# anon_bytes is the daemon's own memory and is the figure to read. file_bytes is
+# page cache, which here tracks the proof archive being read off disk rather
+# than anything the daemon retains.
 #
-# mem_peak_bytes is memory.peak, the high water mark. It cannot be reset without
+# mem_bytes reproduces what docker stats prints (current less inactive page
+# cache) and is kept only so the existing series stays continuous. It counts
+# active page cache as daemon memory, 17 MiB on the minter when this was written
+# and growing with the archive, which would slowly turn a memory chart into a
+# disk cache chart.
+#
+# mem_peak_bytes is memory.peak, a high water mark. It cannot be reset without
 # root, so it is cumulative since the container started rather than a per-epoch
-# peak. A high water mark that keeps climbing epoch after epoch is the leak
-# signal; one that flattens means memory use has settled.
+# peak. One that keeps climbing is the leak signal; one that flattens means
+# memory use has settled.
 cgroup_memory() {
-  local node=$1 cid base current inactive peak
+  local node=$1 cid base anon file inact kstack slab current peak
   cid=$(docker inspect -f '{{.Id}}' "$node" 2>/dev/null) || { echo '{}'; return; }
 
   for base in "/sys/fs/cgroup/system.slice/docker-$cid.scope" \
               "/sys/fs/cgroup/docker/$cid"; do
     [[ -r "$base/memory.current" ]] || continue
+    anon=$(awk '/^anon /{print $2}' "$base/memory.stat")
+    file=$(awk '/^file /{print $2}' "$base/memory.stat")
+    inact=$(awk '/^inactive_file /{print $2}' "$base/memory.stat")
+    kstack=$(awk '/^kernel_stack /{print $2}' "$base/memory.stat")
+    slab=$(awk '/^slab /{print $2}' "$base/memory.stat")
     current=$(cat "$base/memory.current")
-    inactive=$(awk '/^inactive_file /{print $2}' "$base/memory.stat" 2>/dev/null)
     peak=$(cat "$base/memory.peak" 2>/dev/null || echo 0)
-    jq -cn --argjson c "$current" --argjson i "${inactive:-0}" --argjson p "${peak:-0}" \
-      '{mem_bytes: (if $c > $i then $c - $i else $c end), mem_peak_bytes: $p}'
+    jq -cn --argjson a "${anon:-0}" --argjson f "${file:-0}" \
+      --argjson ks "${kstack:-0}" --argjson sl "${slab:-0}" \
+      --argjson c "${current:-0}" --argjson i "${inact:-0}" \
+      --argjson p "${peak:-0}" \
+      '{anon_bytes: $a, file_bytes: $f, kernel_stack_bytes: $ks, slab_bytes: $sl,
+        current_bytes: $c, mem_peak_bytes: $p,
+        mem_bytes: (if $c > $i then $c - $i else $c end)}'
+    return
+  done
+
+  echo '{}'
+}
+
+# Cumulative CPU time. These only rise, so the figure worth reading is the
+# per-epoch difference, which epoch.sh records as a delta. An instantaneous CPU
+# percentage is useless here: it is sampled between runs and always reads zero.
+cgroup_cpu() {
+  local node=$1 cid base u us sy
+  cid=$(docker inspect -f '{{.Id}}' "$node" 2>/dev/null) || { echo '{}'; return; }
+
+  for base in "/sys/fs/cgroup/system.slice/docker-$cid.scope" \
+              "/sys/fs/cgroup/docker/$cid"; do
+    [[ -r "$base/cpu.stat" ]] || continue
+    u=$(awk '/^usage_usec /{print $2}' "$base/cpu.stat")
+    us=$(awk '/^user_usec /{print $2}' "$base/cpu.stat")
+    sy=$(awk '/^system_usec /{print $2}' "$base/cpu.stat")
+    jq -cn --argjson u "${u:-0}" --argjson us "${us:-0}" --argjson sy "${sy:-0}" \
+      '{cpu_usec: $u, cpu_user_usec: $us, cpu_system_usec: $sy}'
     return
   done
 
@@ -117,7 +152,8 @@ all_container_stats() {
         mem="{}"
         for n in $ALL_CONTAINERS; do
           mem=$(jq -cn --argjson acc "$mem" --arg k "$n" \
-            --argjson v "$(cgroup_memory "$n")" '$acc + {($k): $v}')
+            --argjson v "$(jq -cn --argjson m "$(cgroup_memory "$n")" \
+              --argjson c "$(cgroup_cpu "$n")" '$m + $c')" '$acc + {($k): $v}')
         done
         echo "$mem"
       )" \

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node Snapshot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* Page-specific: the control row and the bar form. Everything else comes
+     from tokens.css, which is generated from the series page. */
+  .controls {
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    padding: .8rem 1rem; background: var(--surface);
+    border: 1px solid var(--hairline); border-radius: 12px;
+  }
+  .controls label {
+    font-family: "IBM Plex Mono", monospace; font-size: .6875rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+  }
+  select {
+    font: inherit; font-size: .875rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: .34rem 2rem .34rem .6rem; cursor: pointer;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+                      linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .controls .ctx { margin-left: auto; font-size: .8125rem; color: var(--ink-3); }
+
+  .hero { display: flex; align-items: baseline; gap: .5rem; margin: .2rem 0 .1rem; }
+  .hero .n {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 2rem; font-weight: 500; letter-spacing: -.03em; line-height: 1;
+  }
+  .hero .u { font-size: .875rem; color: var(--ink-3); }
+
+  .bars { display: flex; flex-direction: column; gap: 2px; margin-top: .9rem; }
+  .bar { display: grid; grid-template-columns: 11rem 1fr auto; gap: .7rem;
+         align-items: center; padding: .18rem 0; border-radius: 6px; }
+  .bar:hover, .bar:focus-visible { background: var(--sunken); outline: none; }
+  .bar .lbl { font-size: .8125rem; color: var(--ink-2); text-align: right; }
+  .bar .track { position: relative; height: 15px; }
+  .bar .fill {
+    position: absolute; left: 0; top: 0; height: 100%;
+    border-radius: 0 4px 4px 0; min-width: 2px;
+  }
+  .bar .val {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: .8125rem; color: var(--ink); min-width: 5.5rem;
+  }
+  .bar.muted .fill { opacity: .45; }
+  .bar.muted .lbl, .bar.muted .val { color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">tapd Growth Bench &middot; <a href="./">back to the series</a></span>
+    <h1>Node Snapshot</h1>
+    <p class="lede">Memory and CPU for a single asset node at the end of the most
+      recent epoch. This page is deliberately one point in time: the series page
+      carries the history.</p>
+  </header>
+
+  <section class="controls">
+    <label for="node">Node</label>
+    <select id="node">
+      <option value="alice-tapd">alice-tapd &mdash; minter</option>
+      <option value="bob-tapd">bob-tapd &mdash; receiver</option>
+    </select>
+    <span class="ctx" id="ctx"></span>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">Memory at end of epoch</span>
+    <h2 id="mem-h">Resident memory</h2>
+    <div class="hero"><span class="n" id="mem-hero">&mdash;</span><span class="u">daemon memory (anon)</span></div>
+    <p class="note">Anonymous memory is what the daemon holds. Page cache is the
+      kernel caching files the daemon read, mostly the proof archive, and is shown
+      dimmed because it is not the daemon retaining anything. The docker figure is
+      what <code>docker stats</code> would print, and it folds active page cache in,
+      which is why it reads higher than anon.</p>
+    <div class="bars" id="mem-bars"></div>
+  </section>
+
+  <section class="card">
+    <span class="eyebrow">CPU consumed during the epoch</span>
+    <h2 id="cpu-h">CPU time</h2>
+    <div class="hero"><span class="n" id="cpu-hero">&mdash;</span><span class="u" id="cpu-sub">total across the epoch</span></div>
+    <p class="note">Taken as the difference between the cumulative cgroup counters
+      before and after the run, so it is CPU actually burned by this epoch rather
+      than an instantaneous sample.</p>
+    <div class="bars" id="cpu-bars"></div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+const fmtBytes = b => {
+  const s = b < 0 ? '−' : '';
+  b = Math.abs(b);
+  if (b >= 1073741824) return s + (b / 1073741824).toFixed(2) + ' GiB';
+  if (b >= 1048576) return s + (b / 1048576).toFixed(1) + ' MiB';
+  if (b >= 1024) return s + (b / 1024).toFixed(0) + ' KiB';
+  return s + b + ' B';
+};
+const fmtSecs = us => {
+  const s = us / 1e6;
+  return s >= 60 ? (s / 60).toFixed(2) + ' min' : s.toFixed(1) + ' s';
+};
+
+// Bars, not lines: one moment in time is a magnitude comparison. Values are
+// labelled directly so nothing depends on hovering, and each bar is its own hit
+// target rather than sharing a crosshair.
+function drawBars(host, rows, fmt, color) {
+  host.textContent = '';
+  const max = Math.max(...rows.map(r => r.value), 1);
+  for (const r of rows) {
+    const el = document.createElement('div');
+    el.className = 'bar' + (r.muted ? ' muted' : '');
+    el.tabIndex = 0;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.textContent = r.label;
+
+    const track = document.createElement('div');
+    track.className = 'track';
+    const fill = document.createElement('div');
+    fill.className = 'fill';
+    fill.style.width = Math.max(0.4, (r.value / max) * 100) + '%';
+    fill.style.background = color;
+    track.append(fill);
+
+    const val = document.createElement('div');
+    val.className = 'val';
+    val.textContent = fmt(r.value);
+
+    el.append(lbl, track, val);
+    if (r.note) el.title = r.note;
+    host.append(el);
+  }
+}
+
+let LATEST = null;
+
+function render(node) {
+  const d = LATEST;
+  const c = (d.after.containers || {})[node] || {};
+  const t = (d.after.tapd || {})[node] || {};
+  const cpu = ((d.delta || {}).containers || {})[node] || {};
+
+  document.getElementById('ctx').textContent =
+    `epoch ${d.epoch} · finished ${d.finished_at.replace('T', ' ').replace('Z', ' UTC')}` +
+    ` · ${t.backend || '?'} · tapd ${(d.versions.tapd || '').split(' ')[0]}`;
+
+  document.getElementById('mem-h').textContent = node + ' memory';
+  document.getElementById('cpu-h').textContent = node + ' CPU time';
+
+  const anon = c.anon_bytes;
+  document.getElementById('mem-hero').textContent =
+    anon === undefined ? 'not recorded' : fmtBytes(anon);
+
+  const memRows = [
+    { label: 'daemon (anon)', value: c.anon_bytes || 0,
+      note: 'anonymous memory: what the process actually holds' },
+    { label: 'Go heap in use', value: t.heap_bytes || 0,
+      note: 'go_memstats_heap_inuse_bytes, a subset of anon' },
+    { label: 'high water mark', value: c.mem_peak_bytes || 0,
+      note: 'memory.peak, cumulative since the container started' },
+    { label: 'page cache', value: c.file_bytes || 0, muted: true,
+      note: 'kernel cache of files read, not daemon memory' },
+    { label: 'docker figure', value: c.mem_bytes || 0, muted: true,
+      note: 'memory.current less inactive page cache, as docker stats reports' },
+    { label: 'kernel stack', value: c.kernel_stack_bytes || 0, muted: true },
+    { label: 'kernel slab', value: c.slab_bytes || 0, muted: true },
+  ].filter(r => r.value > 0);
+  drawBars(document.getElementById('mem-bars'), memRows, fmtBytes, 'var(--series-1)');
+
+  const total = cpu.cpu_usec;
+  document.getElementById('cpu-hero').textContent =
+    total === undefined ? 'not recorded' : fmtSecs(total);
+  const wall = d.duration_s;
+  document.getElementById('cpu-sub').textContent = total === undefined
+    ? 'total across the epoch'
+    : `total across the epoch · ${((total / 1e6) / wall * 100).toFixed(0)}% of one core over ${wall}s wall clock`;
+
+  const cpuRows = [
+    { label: 'user', value: cpu.cpu_user_usec || 0,
+      note: 'time in the daemon itself' },
+    { label: 'system', value: cpu.cpu_system_usec || 0,
+      note: 'time in kernel calls on behalf of the daemon' },
+  ].filter(r => r.value > 0);
+  drawBars(document.getElementById('cpu-bars'), cpuRows, fmtSecs, 'var(--series-2)');
+
+  document.getElementById('footer').innerHTML =
+    'Raw record: <a href="latest.json">latest.json</a>. Full history: ' +
+    '<a href="epochs.json">epochs.json</a>.';
+}
+
+const sel = document.getElementById('node');
+// Remember the choice so a reload does not snap back to the minter.
+const saved = (() => { try { return localStorage.getItem('tapbench.node'); } catch { return null; } })();
+if (saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
+sel.addEventListener('change', () => {
+  try { localStorage.setItem('tapbench.node', sel.value); } catch { /* private mode */ }
+  render(sel.value);
+});
+
+fetch('latest.json').then(r => r.json()).then(d => {
+  LATEST = d;
+  render(sel.value);
+}).catch(err => {
+  document.getElementById('ctx').textContent = 'could not load latest.json: ' + err;
+});
+</script>
+</body>
+</html>

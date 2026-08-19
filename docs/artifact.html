@@ -3263,12 +3263,138 @@
         "db_bytes": 204800
       }
     }
+  },
+  {
+    "epoch": 30,
+    "finished_at": "2026-08-19T09:25:50Z",
+    "duration_s": 221.85,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 3.48
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 155.11
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 63.23
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 47001600,
+          "proofs_bytes": 127219508,
+          "assets": 512,
+          "universe_roots": 10,
+          "universe_leaves": 1738,
+          "multiverse_root": "2e0f60aadcd662f4f7371537ce22ce82f376d8e9b990f902a61ef67b07298c38"
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 50994199,
+          "proofs_bytes": 10426815,
+          "assets": 7,
+          "universe_roots": 10,
+          "universe_leaves": 72217,
+          "multiverse_root": "2e0f60aadcd662f4f7371537ce22ce82f376d8e9b990f902a61ef67b07298c38"
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 4452352,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 730,
+          "multiverse_root": "2e0f60aadcd662f4f7371537ce22ce82f376d8e9b990f902a61ef67b07298c38"
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 16718871,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 730,
+          "multiverse_root": "2e0f60aadcd662f4f7371537ce22ce82f376d8e9b990f902a61ef67b07298c38"
+        }
+      },
+      "containers": {
+        "bitcoind": {
+          "mem_bytes": 53620736,
+          "mem_peak_bytes": 60735488
+        },
+        "pg": {
+          "mem_bytes": 158806016,
+          "mem_peak_bytes": 330301440
+        },
+        "alice": {
+          "mem_bytes": 82452480,
+          "mem_peak_bytes": 310296576
+        },
+        "bob": {
+          "mem_bytes": 74702848,
+          "mem_peak_bytes": 296247296
+        },
+        "uni": {
+          "mem_bytes": 46137344,
+          "mem_peak_bytes": 297152512
+        },
+        "uni2": {
+          "mem_bytes": 42786816,
+          "mem_peak_bytes": 296407040
+        },
+        "alice-tapd": {
+          "mem_bytes": 249249792,
+          "mem_peak_bytes": 607399936
+        },
+        "bob-tapd": {
+          "mem_bytes": 85745664,
+          "mem_peak_bytes": 148365312
+        },
+        "uni-tapd": {
+          "mem_bytes": 42692608,
+          "mem_peak_bytes": 74297344
+        },
+        "uni2-tapd": {
+          "mem_bytes": 26886144,
+          "mem_peak_bytes": 68161536
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 2678784
+      },
+      "bob-tapd": {
+        "db_bytes": 1720320
+      },
+      "uni-tapd": {
+        "db_bytes": 135168
+      },
+      "uni2-tapd": {
+        "db_bytes": 212992
+      },
+      "containers": {
+        "db_bytes": null
+      }
+    }
   }
 ];</script>
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Taproot Assets daemon &middot; regtest, never reset</span>
+    <span class="eyebrow">Taproot Assets daemon &middot; regtest, never reset &middot;
+      node snapshot</span>
     <h1>tapd Growth Bench</h1>
     <p class="lede">One load epoch runs on a schedule against a regtest network whose
       state is never wiped. The question is not how fast tapd is on a clean node, but
