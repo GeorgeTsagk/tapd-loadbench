@@ -107,12 +107,24 @@
       <option value="alice-tapd">alice-tapd &mdash; minter</option>
       <option value="bob-tapd">bob-tapd &mdash; receiver</option>
     </select>
+    <label for="op">Operation</label>
+    <select id="op">
+      <option value="epoch">whole epoch (snapshot)</option>
+      <option value="mintV2">mint</option>
+      <option value="sendV2">send</option>
+      <option value="sync">sync</option>
+      <option value="growth">across epochs</option>
+    </select>
     <label for="prof">Profile</label>
     <select id="prof">
       <option value="heap">heap &mdash; memory held now</option>
       <option value="allocs">allocs &mdash; memory ever allocated</option>
       <option value="goroutine">goroutines</option>
-      <option value="growth">growth &mdash; heap since baseline</option>
+    </select>
+    <label for="attr">Attribution</label>
+    <select id="attr">
+      <option value="folded">folded onto owned code</option>
+      <option value="raw">raw, by leaf function</option>
     </select>
     <label for="grp">Group</label>
     <select id="grp">
@@ -294,71 +306,126 @@ function renderTable(tblId, rows, cols, state) {
 
 function renderProfile() {
   const node = document.getElementById('node').value;
+  const op = document.getElementById('op').value;
   const kind = document.getElementById('prof').value;
+  const attr = document.getElementById('attr').value;
   const group = document.getElementById('grp').value;
   const q = document.getElementById('filter').value.trim().toLowerCase();
   const empty = document.getElementById('prof-empty');
-  const notes = {
-    heap: 'Live heap by allocation site: what the daemon is holding right now. ' +
-          'Sampled by the Go runtime at one sample per 512 KB allocated.',
-    allocs: 'Every allocation since the daemon started, so this shows churn rather ' +
-            'than retention. A site can dominate here and hold nothing.',
-    goroutine: 'Goroutines grouped by the frame that identifies them. Every parked ' +
-               'goroutine sits in runtime.gopark, so the deepest tapd frame is used ' +
-               'instead of the top one. Click a row for its stack.',
-    growth: 'Heap difference against the oldest profile on disk, so positive means ' +
-            'the site is retaining more than it was. This is the leak view.',
-  };
-  document.getElementById('prof-note').textContent = notes[kind] || '';
-  document.getElementById('prof-h').textContent = node + ' \u2014 ' +
-    document.getElementById('prof').selectedOptions[0].textContent.split(' \u2014 ')[0];
+  const tbody = document.getElementById('prof-tbl').querySelector('tbody');
 
-  if (!PROFILES || !PROFILES.nodes[node]) {
-    empty.hidden = false;
-    empty.textContent = 'No profiles captured for this node yet.';
-    document.getElementById('prof-tbl').querySelector('tbody').textContent = '';
+  const opLabel = document.getElementById('op').selectedOptions[0].textContent;
+  document.getElementById('prof-h').textContent =
+    node + ' \u2014 ' + kind + ' \u2014 ' + opLabel;
+
+  const show = (msg) => {
+    tbody.textContent = '';
     document.getElementById('prof-hero').textContent = 'n/a';
     document.getElementById('prof-sub').textContent = '';
-    return;
+    empty.hidden = false;
+    empty.textContent = msg;
+  };
+
+  if (!PROFILES) return show('No profile data published yet.');
+  const n = PROFILES.nodes[node];
+  if (!n) return show('No profiles captured for this node.');
+
+  // Where the numbers come from depends on the operation: a snapshot for the
+  // whole epoch, a pre/post difference for one case, and an epoch-boundary
+  // difference for growth.
+  let src, note, signed = false;
+  if (op === 'epoch') {
+    src = (n.snapshot || {})[kind];
+    note = {
+      heap: 'Live heap at the end of the epoch, after every case has run. This is ' +
+            'what the daemon is holding, not what any one operation did.',
+      allocs: 'Every allocation since the daemon started, so this is lifetime churn ' +
+              'across all epochs, not this epoch alone. Pick an operation to scope it.',
+      goroutine: 'Goroutines at the end of the epoch, grouped by the frame that ' +
+                 'identifies them. Click a row for its stack.',
+    }[kind];
+  } else if (op === 'growth') {
+    src = (n.growth || {})[kind];
+    signed = true;
+    note = 'Difference between the epoch-boundary profiles of epoch ' +
+      PROFILES.baseline_epoch + ' and epoch ' + PROFILES.epoch +
+      '. Positive means the site is holding or allocating more than it was.';
+  } else {
+    const c = (n.cases || {})[op];
+    src = c ? c[kind] : null;
+    signed = true;
+    note = 'Difference across a capture taken immediately before and after this ' +
+      'case, so it is scoped to that operation. For allocs it is what the ' +
+      'operation allocated; for heap it is what the operation left behind.';
+    if (c && c.goroutine_delta !== undefined && kind === 'goroutine') {
+      note = 'This case changed the goroutine count by ' +
+        (c.goroutine_delta >= 0 ? '+' : '') + c.goroutine_delta +
+        '. Per-stack differences are not kept for goroutines; use the whole-epoch ' +
+        'snapshot for stacks.';
+    }
+  }
+  document.getElementById('prof-note').textContent = note || '';
+
+  if (!src) {
+    if (op === 'growth') {
+      return show('Growth needs epoch-boundary profiles from two epochs. ' +
+        PROFILES.profiles_available + ' captured so far.');
+    }
+    if (op !== 'epoch' && kind === 'goroutine') {
+      const d = ((n.cases || {})[op] || {}).goroutine_delta;
+      return show(d === undefined
+        ? 'No goroutine capture for this case yet.'
+        : 'Goroutine count changed by ' + (d >= 0 ? '+' : '') + d +
+          ' during this case. Switch to the whole-epoch snapshot for per-stack detail.');
+    }
+    return show('No ' + kind + ' profile for this selection. It is captured from the ' +
+      'next epoch onward.');
   }
 
-  const src = kind === 'growth' ? PROFILES.nodes[node].heap : PROFILES.nodes[node][kind];
-  let list, unit;
-  if (!src) { list = []; unit = 'count'; }
-  else if (kind === 'growth') { list = src.growth || []; unit = src.unit; }
-  else if (group === 'pkg') { list = src.packages || []; unit = src.unit; }
-  else { list = src.functions || []; unit = src.unit; }
-
+  const unit = src.unit;
   const fmt = unit === 'bytes' ? fmtBytes : fmtCount;
+  let list = group === 'pkg' ? (src.packages || []) : (src[attr] || []);
   let rows = list.map(r => ({
-    name: group === 'pkg' && kind !== 'growth' ? r.pkg : r.fn,
+    name: group === 'pkg' ? r.pkg : r.fn,
     flat: r.flat, cum: r.cum !== undefined ? r.cum : r.flat, stack: r.stack,
   }));
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
 
   const total = rows.reduce((a, r) => a + Math.abs(r.flat), 0);
   document.getElementById('prof-hero').textContent =
-    kind === 'goroutine' ? fmtCount(total) : fmt(total);
-  document.getElementById('prof-sub').textContent =
-    (kind === 'goroutine' ? 'goroutines' : 'across ' + rows.length + ' entries') +
-    (q ? ' matching "' + q + '"' : '') +
-    (kind === 'growth' ? ' since epoch ' + PROFILES.baseline_epoch : '');
+    (signed && total > 0 ? '' : '') + (unit === 'bytes' ? fmt(src.total) : fmtCount(src.total));
+  const bits = [rows.length + ' entries'];
+  if (q) bits.push('matching "' + q + '"');
+  // Folding leaves whatever has no owned caller unattributed. Say how much
+  // rather than letting it vanish.
+  if (attr === 'folded' && src.unattributed) {
+    bits.push(fmt(src.unattributed) + ' not attributable to owned code');
+  }
+  document.getElementById('prof-sub').textContent = bits.join(' \u00b7 ');
 
-  const n = renderTable('prof-tbl', rows, {
-    magKey: 'flat', signed: kind === 'growth',
+  const count = renderTable('prof-tbl', rows, {
+    magKey: 'flat', signed,
     cells: [
-      { key: 'flat', mag: true, fmt: v => (kind === 'growth' && v > 0 ? '+' : '') + fmt(v) },
-      { key: 'flat', fmt: (v) => total ? (Math.abs(v) / total * 100).toFixed(1) + '%' : '0%' },
+      { key: 'flat', mag: true, fmt: v => (signed && v > 0 ? '+' : '') + fmt(v) },
+      { key: 'flat', fmt: v => total ? (Math.abs(v) / total * 100).toFixed(1) + '%' : '0%' },
       { key: 'cum', fmt: v => fmt(v) },
     ],
   }, sortState.prof);
 
-  empty.hidden = n > 0;
-  if (!n) {
-    empty.textContent = kind === 'growth'
-      ? 'No growth data yet: this needs profiles from at least two epochs. ' +
-        PROFILES.profiles_available + ' captured so far.'
-      : 'Nothing matches that filter.';
+  empty.hidden = count > 0;
+  if (!count) {
+    // A per-case profile that exists but totals zero is a real answer: the node
+    // did no measurable work during that operation. Do not dress it up as
+    // missing data.
+    if (q) {
+      empty.textContent = 'Nothing matches that filter.';
+    } else if (src.total === 0) {
+      empty.textContent = 'This node did no measurable ' + kind +
+        ' work during ' + opLabel.replace(/ .*/, '') +
+        '. The receiver is idle except during sends.';
+    } else {
+      empty.textContent = 'No rows for this view.';
+    }
   }
 }
 
@@ -463,7 +530,7 @@ sel.addEventListener('change', () => {
   try { localStorage.setItem('tapbench.node', sel.value); } catch { /* private mode */ }
   renderAll();
 });
-for (const id of ['prof', 'grp']) {
+for (const id of ['op', 'prof', 'attr', 'grp']) {
   document.getElementById(id).addEventListener('change', renderProfile);
 }
 let t;

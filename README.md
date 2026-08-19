@@ -168,9 +168,15 @@ HTTP listener, and serves nothing: the listener has only a catch-all redirect to
 patched binary reports `commit=v0.8.1-dirty`, so profiled epochs identify
 themselves in `versions.tapd`. Rebuild with `bench/build-pprof-image.sh`.
 
-Each epoch captures heap, allocs and goroutine profiles per node into
-`logs/epoch-NNNNN/pprof/`, as protobuf so `go tool pprof -base` can diff two
-epochs. Measured cost: about 6 ms of stop-the-world per epoch against a 220 s
+Each case is bracketed by a capture, so profiles attribute to one operation
+rather than to the epoch as a whole. That matters because `alloc_space` is
+cumulative since the process started: a single end-of-epoch snapshot mixes every
+case across every epoch since the last restart. The difference across a bracket is
+what that case allocated, and the heap difference is what it left behind. A
+further capture at the epoch boundary is what cross-epoch diffs compare.
+
+Profiles are stored as protobuf in `logs/epoch-NNNNN/pprof/` so `go tool pprof
+-base` stays available: 42 files and about 8 MB per epoch. Measured cost: about 6 ms of stop-the-world per epoch against a 220 s
 epoch, and roughly 45 KB per epoch on disk. Heap sampling itself was already
 running, since `MemProfileRate` defaults to one sample per 512 KB.
 
@@ -179,10 +185,27 @@ site, and diffs them against the oldest on disk for the growth view. Symbol name
 survive the release build's `-s -w` because Go keeps its own `pclntab`, so no
 special build is needed.
 
-The node page browses all of it: node, profile type, and grouping by function or
-by package, with a filter and sortable columns. Grouping by package is the
-subsystem view, since tapd sets no pprof labels and package paths are the closest
-thing to a named subsystem.
+### Attribution
+
+Dependency frames are folded onto the nearest owned caller rather than filtered
+out. Filtering them looks tempting, since third-party code is not yours to change,
+but it discards the signal: 16 MiB sitting in `btcd/wire.scriptFreeList.Borrow` is
+really `proof.TxDecoder` and `lndclient.unmarshallTransaction` deserializing
+transactions a lot, which is a fact about tapd. `pprof -show` folds it to the
+caller and keeps that.
+
+Whatever has no owned caller at all cannot be folded, so it is reported as an
+explicit unattributed figure instead of vanishing. On the minter that is around
+17% of live heap: grpc handler chains, `runtime.allocm` (which tracks OS threads
+and so tracks the goroutine count), and `pgregory.net/rapid`, a property-testing
+library that is linked into the release binary.
+
+The page offers both views, folded and raw by leaf function.
+
+The node page browses all of it: node, operation, profile type, attribution and
+grouping by function or by package, with a filter and sortable columns. Grouping
+by package is the subsystem view, since tapd sets no pprof labels and package
+paths are the closest thing to a named subsystem.
 
 `--prometheus.perfhistograms` is also on, which adds per-method gRPC latency
 histograms; each epoch records calls, total time and mean per method.

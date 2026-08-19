@@ -255,17 +255,28 @@ snapshot() {
 PPROF_NODES="alice-tapd bob-tapd"
 PPROF_PORT=9091
 
-# Save the raw pprof profiles for one node. Kept as protobuf rather than text:
-# go tool pprof needs the binary form to diff two epochs, which is the whole
-# point of keeping them.
+# Save the raw pprof profiles for one node under a label.
+#
+# Kept as protobuf rather than text because the useful operations are diffs:
+# go tool pprof -base of a pre/post pair around one case says what that case did,
+# and a diff across epochs says what is accumulating. Text output cannot do
+# either.
 capture_profiles() {
-  local node=$1 dir=$2
+  local node=$1 dir=$2 label=$3
   mkdir -p "$dir"
   local p
   for p in heap goroutine allocs; do
     docker exec "$node" sh -c \
       "curl -s -o /tmp/$p.pb.gz 'localhost:$PPROF_PORT/debug/pprof/$p'" 2>/dev/null || continue
-    docker cp "$node:/tmp/$p.pb.gz" "$dir/$node.$p.pb.gz" >/dev/null 2>&1 || true
+    docker cp "$node:/tmp/$p.pb.gz" "$dir/$node.$label.$p.pb.gz" >/dev/null 2>&1 || true
+  done
+}
+
+# Capture on every profiled node at once.
+capture_all() {
+  local dir=$1 label=$2 n
+  for n in $PPROF_NODES; do
+    capture_profiles "$n" "$dir" "$label"
   done
 }
 

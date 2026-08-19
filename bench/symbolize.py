@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 """Turn captured pprof profiles into JSON the site can browse.
 
-The browser cannot read pprof protobuf, and shipping a WebAssembly pprof would be
-absurd for this, so symbolization happens here at render time and the page gets
-plain JSON. Raw profiles stay on disk so `go tool pprof -base` remains available
-for anything the page does not show.
-"""
-import json, os, re, subprocess, sys, pathlib
+Two things this does that a plain `pprof -top` dump does not.
 
-# The site serves this file out of the repository, so every render commits a
-# fresh copy. Keep it small: the tail of a profile is noise anyway.
+Per operation. Each case is bracketed by a capture, and alloc_space is cumulative,
+so the difference across a bracket is exactly what that case allocated, and the
+heap difference is what it retained. A single end-of-epoch snapshot attributes to
+nothing, because it is taken after the last case has finished.
+
+Folded attribution. A dependency frame with a large flat cost is almost always
+your code calling it a lot: 16 MiB sitting in btcd/wire.scriptFreeList.Borrow is
+really proof.TxDecoder and lndclient.unmarshallTransaction deserializing
+transactions. Dropping such frames throws the signal away, so `pprof -show` folds
+them into the nearest owned caller instead. Whatever has no owned caller at all
+(runtime.allocm, grpc handler chains) is reported as an explicit unattributed
+figure rather than quietly disappearing.
+"""
+import json, re, subprocess, sys, pathlib
+
 TOP_N = 45
-PROFILES = {"heap": "bytes", "allocs": "bytes", "goroutine": "count"}
-ROW = re.compile(r"^\s*(-?[\d.]+)(\w*)\s+([\d.]+)%\s+([\d.]+)%\s+(-?[\d.]+)(\w*)\s+([\d.]+)%\s+(.*)$")
+OWNED = "lightninglabs|lightningnetwork"
+ROW = re.compile(r"^\s*(-?[\d.]+)(\w*)\s+(-?[\d.]+)%\s+(-?[\d.]+)%\s+(-?[\d.]+)(\w*)\s+(-?[\d.]+)%\s+(.*)$")
+TOTAL = re.compile(r"of (-?\d+)B total")
 UNITS = {"": 1, "B": 1, "b": 1, "kB": 1000, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
 
 
@@ -25,8 +34,7 @@ def clean(fn):
     """Collapse generic instantiations.
 
     A generic symbol carries its whole shape inline, and the shape itself contains
-    brackets (`[go.shape.[]*pkg.Type]`), so a non-greedy regex stops at the wrong
-    one. Match brackets properly instead.
+    brackets, so a non-greedy regex stops at the wrong one. Match them properly.
     """
     while (i := fn.find("[go.shape")) != -1:
         depth, j = 0, i
@@ -45,8 +53,8 @@ def clean(fn):
 def pkg_of(fn):
     """Import path of a symbol, which is how a profile maps onto subsystems.
 
-    tapd sets no pprof labels, so there is no named subsystem dimension; the
-    package path is the closest thing and it lines up with the code layout.
+    tapd sets no pprof labels, so there is no named subsystem dimension. The
+    package path is the closest thing and it matches the code layout.
     """
     fn = clean(fn).split(" ")[0]
     if "/" in fn:
@@ -55,6 +63,7 @@ def pkg_of(fn):
     else:
         pkg = fn.split(".")[0]
     for prefix, short in (("github.com/lightninglabs/taproot-assets", "tapd"),
+                          ("github.com/lightninglabs", "lightninglabs"),
                           ("github.com/lightningnetwork/lnd", "lnd"),
                           ("github.com/btcsuite/btcd", "btcd"),
                           ("google.golang.org/grpc", "grpc"),
@@ -66,27 +75,29 @@ def pkg_of(fn):
     return pkg
 
 
-def parse_top(text, unit_hint):
-    rows = []
+def parse_top(text, scaled):
+    rows, total = [], None
     for line in text.splitlines():
+        if total is None and (m := TOTAL.search(line)):
+            total = int(m.group(1))
         m = ROW.match(line)
         if not m:
             continue
         flat, fu, _, _, cum, cu, cumpct, name = m.groups()
-        scale_f = UNITS.get(fu, 1) if unit_hint == "bytes" else 1
-        scale_c = UNITS.get(cu, 1) if unit_hint == "bytes" else 1
-        rows.append({"fn": clean(name.strip()), "pkg": pkg_of(name.strip()),
-                     "flat": int(float(flat) * scale_f),
-                     "cum": int(float(cum) * scale_c),
+        sf = UNITS.get(fu, 1) if scaled else 1
+        sc = UNITS.get(cu, 1) if scaled else 1
+        name = clean(name.strip())
+        rows.append({"fn": name, "pkg": pkg_of(name),
+                     "flat": int(float(flat) * sf), "cum": int(float(cum) * sc),
                      "cum_pct": float(cumpct)})
-    return rows
+    return rows, total
 
 
 def parse_traces(text):
-    """Group goroutines by the frame that best identifies them.
+    """Group goroutines by the frame that identifies them.
 
     Every parked goroutine sits in runtime.gopark, so the top frame says nothing.
-    Walk down for the deepest tapd frame, and fall back to the deepest non-runtime
+    Walk down for the deepest owned frame, falling back to the deepest non-runtime
     frame when none of the stack is ours.
     """
     groups, count, frames = [], None, []
@@ -94,13 +105,13 @@ def parse_traces(text):
     def flush():
         if count is None or not frames:
             return
-        tap = [f for f in frames if "taproot-assets" in f]
-        pick = tap[-1] if tap else next(
-            (f for f in reversed(frames) if not f.startswith(("runtime.", "internal/"))),
-            frames[-1])
-        groups.append({"fn": clean(pick), "pkg": pkg_of(pick),
-                       "flat": count, "cum": count, "cum_pct": 0.0,
-                       "stack": [clean(f) for f in frames[-6:]]})
+        own = [f for f in frames if re.search(OWNED, f)]
+        pick = own[-1] if own else next(
+            (f for f in reversed(frames)
+             if not f.startswith(("runtime.", "internal/"))), frames[-1])
+        groups.append({"fn": clean(pick), "pkg": pkg_of(pick), "flat": count,
+                       "cum": count, "cum_pct": 0.0,
+                       "stack": [clean(f) for f in frames[-5:]]})
 
     for line in text.splitlines():
         if line.startswith("---"):
@@ -115,15 +126,15 @@ def parse_traces(text):
 
     merged = {}
     for g in groups:
-        k = g["fn"]
-        if k in merged:
-            merged[k]["flat"] += g["flat"]; merged[k]["cum"] += g["flat"]
+        if g["fn"] in merged:
+            merged[g["fn"]]["flat"] += g["flat"]
+            merged[g["fn"]]["cum"] += g["flat"]
         else:
-            merged[k] = g
+            merged[g["fn"]] = g
     out = sorted(merged.values(), key=lambda g: -g["flat"])
-    total = sum(g["flat"] for g in out) or 1
+    tot = sum(g["flat"] for g in out) or 1
     for g in out:
-        g["cum_pct"] = round(g["flat"] / total * 100, 2)
+        g["cum_pct"] = round(g["flat"] / tot * 100, 2)
     return out
 
 
@@ -131,12 +142,37 @@ def by_package(rows):
     agg = {}
     for r in rows:
         a = agg.setdefault(r["pkg"], {"pkg": r["pkg"], "flat": 0, "cum": 0, "fns": 0})
-        a["flat"] += r["flat"]; a["cum"] = max(a["cum"], r["cum"]); a["fns"] += 1
-    out = sorted(agg.values(), key=lambda a: -a["flat"])
-    total = sum(a["flat"] for a in out) or 1
+        a["flat"] += r["flat"]
+        a["cum"] = max(a["cum"], r["cum"])
+        a["fns"] += 1
+    out = sorted(agg.values(), key=lambda a: -abs(a["flat"]))
+    tot = sum(abs(a["flat"]) for a in out) or 1
     for a in out:
-        a["pct"] = round(a["flat"] / total * 100, 2)
+        a["pct"] = round(a["flat"] / tot * 100, 2)
     return out
+
+
+def view(binary, profile, base=None, traces=False):
+    """One profile rendered both ways: folded onto owned code, and raw by leaf."""
+    args = [f"-nodecount={TOP_N}", "-unit=b"]
+    if base:
+        args += ["-base", str(base)]
+
+    if traces:
+        rows = parse_traces(pprof(["-traces"] + ([] if not base else ["-base", str(base)])
+                                  + [binary, str(profile)]))
+        return {"unit": "count", "total": sum(r["flat"] for r in rows),
+                "unattributed": 0, "folded": rows[:TOP_N],
+                "raw": rows[:TOP_N], "packages": by_package(rows)}
+
+    raw, total = parse_top(pprof(["-top"] + args + [binary, str(profile)]), True)
+    folded, _ = parse_top(
+        pprof(["-top"] + args + ["-show", OWNED, binary, str(profile)]), True)
+    owned_sum = sum(r["flat"] for r in folded)
+    return {"unit": "bytes", "total": total if total is not None else owned_sum,
+            "unattributed": (total - owned_sum) if total is not None else 0,
+            "folded": folded[:TOP_N], "raw": raw[:TOP_N],
+            "packages": by_package(folded)}
 
 
 def main():
@@ -148,50 +184,68 @@ def main():
     if not dirs:
         print("no profiles captured yet")
         return
-    latest, baseline = dirs[-1], dirs[0]
+    latest, oldest = dirs[-1], dirs[0]
     epoch = int(latest.parent.name.split("-")[1])
-    base_epoch = int(baseline.parent.name.split("-")[1])
 
-    result = {"epoch": epoch, "baseline_epoch": base_epoch,
-              "profiles_available": len(dirs), "nodes": {}}
+    result = {"epoch": epoch, "baseline_epoch": int(oldest.parent.name.split("-")[1]),
+              "profiles_available": len(dirs), "owned_pattern": OWNED, "nodes": {}}
 
-    for f in sorted(latest.glob("*.heap.pb.gz")):
-        node = f.name.split(".")[0]
-        node_out = {}
-        for prof, unit in PROFILES.items():
-            src = latest / f"{node}.{prof}.pb.gz"
+    nodes = sorted({f.name.split(".")[0] for f in latest.glob("*.pb.gz")})
+    for node in nodes:
+        out = {"snapshot": {}, "cases": {}, "growth": {}}
+
+        # End-of-epoch snapshot, or the legacy unlabelled capture.
+        for prof in ("heap", "allocs", "goroutine"):
+            src = latest / f"{node}.epoch.{prof}.pb.gz"
             if not src.exists():
-                continue
-            if prof == "goroutine":
-                rows = parse_traces(pprof(["-traces", binary, str(src)]))
-            else:
-                rows = parse_top(
-                    pprof(["-top", "-unit=b", f"-nodecount={TOP_N}", binary, str(src)]),
-                    unit)
-            entry = {"unit": unit, "total": sum(r["flat"] for r in rows),
-                     "functions": rows[:TOP_N], "packages": by_package(rows)}
+                src = latest / f"{node}.{prof}.pb.gz"
+            if src.exists():
+                out["snapshot"][prof] = view(binary, src, traces=(prof == "goroutine"))
 
-            # Growth against the oldest profile on disk: the question a series
-            # cannot answer is which call site is responsible.
-            old = baseline / f"{node}.{prof}.pb.gz"
-            if old.exists() and baseline != latest and prof != "goroutine":
-                d = parse_top(pprof(["-top", "-unit=b", f"-nodecount={TOP_N}",
-                                     "-base", str(old), binary, str(src)]), unit)
-                entry["growth"] = [r for r in d if r["flat"] != 0][:TOP_N]
-            node_out[prof] = entry
-        result["nodes"][node] = node_out
+        # Per case, from the bracket around it.
+        cases = sorted({f.name.split(".")[1][4:] for f in latest.glob(f"{node}.pre-*.pb.gz")})
+        for case in cases:
+            entry = {}
+            for prof in ("heap", "allocs"):
+                pre = latest / f"{node}.pre-{case}.{prof}.pb.gz"
+                post = latest / f"{node}.post-{case}.{prof}.pb.gz"
+                if pre.exists() and post.exists():
+                    entry[prof] = view(binary, post, base=pre)
+            pre_g = latest / f"{node}.pre-{case}.goroutine.pb.gz"
+            post_g = latest / f"{node}.post-{case}.goroutine.pb.gz"
+            if pre_g.exists() and post_g.exists():
+                a = view(binary, pre_g, traces=True)["total"]
+                b = view(binary, post_g, traces=True)["total"]
+                entry["goroutine_delta"] = b - a
+            if entry:
+                out["cases"][case] = entry
 
-    # Stacks are only worth carrying for the groups anyone will look at.
+        # Across epochs, at the boundary captures.
+        if latest != oldest:
+            for prof in ("heap", "allocs"):
+                old = oldest / f"{node}.epoch.{prof}.pb.gz"
+                if not old.exists():
+                    old = oldest / f"{node}.{prof}.pb.gz"
+                new = latest / f"{node}.epoch.{prof}.pb.gz"
+                if not new.exists():
+                    new = latest / f"{node}.{prof}.pb.gz"
+                if old.exists() and new.exists():
+                    out["growth"][prof] = view(binary, new, base=old)
+
+        result["nodes"][node] = out
+
+    # Stacks are only worth carrying for groups anyone will open.
     for node in result["nodes"].values():
-        g = node.get("goroutine")
+        g = node["snapshot"].get("goroutine")
         if g:
-            for i, row in enumerate(g["functions"]):
+            for i, row in enumerate(g["folded"]):
                 if i >= 20:
                     row.pop("stack", None)
+            g["raw"] = g["folded"]
 
     out_path.write_text(json.dumps(result, separators=(",", ":")))
-    tot = sum(len(p.get("functions", [])) for n in result["nodes"].values() for p in n.values())
-    print(f"wrote {out_path} (epoch {epoch}, {len(result['nodes'])} nodes, {tot} rows, "
+    print(f"wrote {out_path} (epoch {epoch}, {len(result['nodes'])} nodes, "
+          f"cases {sorted(set(c for n in result['nodes'].values() for c in n['cases']))}, "
           f"{out_path.stat().st_size // 1024} KB)")
 
 

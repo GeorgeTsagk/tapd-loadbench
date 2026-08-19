@@ -87,6 +87,13 @@ T0=$(date +%s.%N)
 CASE_RESULTS="[]"
 for case_name in $CASES; do
   log "running case $case_name"
+
+  # Bracket the case: alloc_space is cumulative, so the difference between these
+  # two says exactly what this case allocated, and the heap difference says what
+  # it retained. Without the bracket every profile is an end-of-epoch snapshot
+  # taken after the last case, which attributes to nothing.
+  capture_all "$RUNDIR/pprof" "pre-$case_name"
+
   c0=$(date +%s.%N)
   status=pass
   # The binary insists on finding loadtest.conf in its working directory.
@@ -96,6 +103,8 @@ for case_name in $CASES; do
     > "$RUNDIR/$case_name.log" 2>&1 || status=fail
   c1=$(date +%s.%N)
   dur=$(awk -v a="$c0" -v b="$c1" 'BEGIN{printf "%.2f", b-a}')
+
+  capture_all "$RUNDIR/pprof" "post-$case_name"
 
   # A case that gets skipped (no matching -test.run) reports success but does
   # no work, which would silently poison the series. Detect it.
@@ -117,11 +126,8 @@ FINISHED=$(date -u +%FT%TZ)
 log "collecting after snapshot"
 AFTER=$(snapshot)
 
-# Profiles come after the work, so they describe the state the epoch left behind.
-# Raw protobuf, so two epochs can be diffed with go tool pprof -base.
-for n in $PPROF_NODES; do
-  capture_profiles "$n" "$RUNDIR/pprof"
-done
+# One more at the epoch boundary, which is what cross-epoch diffs compare.
+capture_all "$RUNDIR/pprof" "epoch"
 log "captured profiles: $(ls "$RUNDIR/pprof" 2>/dev/null | wc -l) files"
 
 # Per-node growth for this epoch. This is the headline number: absolute db size
