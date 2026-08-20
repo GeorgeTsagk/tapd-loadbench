@@ -28,6 +28,10 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo "=== cron run $STAMP ==="
 
+# A broken library aborted three hours of runs once; fail on that immediately
+# and visibly rather than inside deploy.
+"$HERE/selftest.sh" || { echo "selftest failed, aborting"; exit 1; }
+
 # A host reboot leaves the containers stopped even with restart: unless-stopped,
 # and a fresh boot may not have run bootstrap. deploy.sh is idempotent.
 "$HERE/deploy.sh" || { echo "deploy failed, aborting"; exit 1; }

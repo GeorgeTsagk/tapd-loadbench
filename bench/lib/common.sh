@@ -133,3 +133,31 @@ prom_json() {
   v=$(prom "$1" "$2")
   [[ -n "$v" ]] && printf '%s' "$v" || printf 'null'
 }
+
+# Add every configured federation peer, tolerating the ones already present.
+ensure_federation() {
+  local node peer out
+  for node in $TAPD_NODES; do
+    for peer in ${FEDERATION[$node]:-}; do
+      tapcli "$node" universe federation list 2>/dev/null \
+        | jq -e --arg h "$peer:10029" 'any(.servers[]?; .host == $h)' >/dev/null \
+        && continue
+      out=$(tapcli "$node" universe federation add \
+        --universe_host "$peer:10029" 2>&1) || true
+      case "$out" in
+        *"already"*|*"ourselves"*) ;;
+        *) log "  federation $node -> $peer: ${out:-added}" ;;
+      esac
+    done
+  done
+
+  # Report the result rather than assuming it: a node with an empty federation
+  # silently stops receiving proofs, and every later number would be wrong.
+  for node in $TAPD_NODES; do
+    local want got
+    want=$(echo "${FEDERATION[$node]:-}" | wc -w)
+    got=$(tapcli "$node" universe federation list 2>/dev/null \
+      | jq '[.servers[]?] | length')
+    (( got >= want )) || die "$node has $got federation peers, expected $want"
+  done
+}
