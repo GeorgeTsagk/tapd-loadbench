@@ -168,8 +168,11 @@ tapd_metrics() {
   local node=$1
   local backend=${TAPD_DB[$node]}
 
+  # One scrape, reused by every metric below.
+  prom_fetch "$node"
+
   local db_bytes proofs_b proofs_n assets groups roots batches
-  db_bytes=$(prom "$node" total_db_size)
+  db_bytes=$(prom_json "$node" total_db_size)
   proofs_b=$(proofs_bytes "$node")
   proofs_n=$(proofs_count "$node")
 
@@ -203,7 +206,7 @@ tapd_metrics() {
 
   jq -cn \
     --arg backend "$backend" \
-    --argjson db_bytes "${db_bytes:-0}" \
+    --argjson db_bytes "${db_bytes:-null}" \
     --argjson storage "$storage" \
     --argjson proofs_bytes "${proofs_b:-0}" \
     --argjson proofs_files "${proofs_n:-0}" \
@@ -215,13 +218,13 @@ tapd_metrics() {
     --argjson multiverse_sum "${mvsum:-0}" \
     --arg multiverse_root "${mvroot:-}" \
     --argjson mint_batches "${batches:-0}" \
-    --argjson heap_bytes "$(prom "$node" go_memstats_heap_inuse_bytes)" \
-    --argjson goroutines "$(prom "$node" go_goroutines)" \
-    --argjson grpc_calls "$(prom "$node" grpc_server_started_total)" \
-    --argjson uni_syncs "$(prom "$node" num_total_syncs)" \
-    --argjson uni_proofs "$(prom "$node" num_total_proofs)" \
-    --argjson container "$(echo "$CONTAINER_STATS" | jq -c --arg k "$node" '.[$k] // {}')" \
-    --argjson grpc "$(grpc_latency "$node")" \
+    --argjson heap_bytes "$(prom_json "$node" go_memstats_heap_inuse_bytes)" \
+    --argjson goroutines "$(prom_json "$node" go_goroutines)" \
+    --argjson grpc_calls "$(prom_json "$node" grpc_server_started_total)" \
+    --argjson uni_syncs "$(prom_json "$node" num_total_syncs)" \
+    --argjson uni_proofs "$(prom_json "$node" num_total_proofs)" \
+    --argjson container "$(echo "${CONTAINER_STATS:-{\}}" | jq -c --arg k "$node" '.[$k] // {}' 2>/dev/null || echo '{}')" \
+    --argjson grpc "$(grpc_latency "$node" 2>/dev/null || echo '{}')" \
     '{backend: $backend, db_bytes: $db_bytes, storage: $storage,
       proofs_bytes: $proofs_bytes, proofs_files: $proofs_files,
       assets: $assets, groups: $groups, universe_roots: $universe_roots,
@@ -237,6 +240,7 @@ tapd_metrics() {
 snapshot() {
   # One batched docker stats call shared by every node below.
   CONTAINER_STATS=$(all_container_stats)
+  PROM_CACHE=()
 
   local out="{}" n
   for n in $TAPD_NODES; do

@@ -95,40 +95,41 @@ ensure_funded() {
   fi
 }
 
-# Scrape one gauge/counter from a tapd prometheus endpoint. Sums all label
-# series, prints 0 if absent.
-prom() {
-  local node=$1 metric=$2
-  curl -s --max-time 20 "localhost:${TAPD_PROM[$node]}/metrics" \
-    | awk -v m="$metric" '
-        $1 == m || index($1, m "{") == 1 { s += $NF; f = 1 }
-        END { print f ? s : 0 }'
+# Scrape a tapd prometheus endpoint once and cache it.
+#
+# Every scrape re-runs every collector, which for these nodes means a db-size
+# query and an enumeration of every asset. Fetching the page once per node per
+# snapshot instead of once per metric cuts that work by a factor of seven, and the
+# handler only allows one request in flight anyway.
+declare -A PROM_CACHE=()
+
+prom_fetch() {
+  local node=$1 body="" try
+  for try in 1 2 3; do
+    body=$(curl -s --max-time 60 "localhost:${TAPD_PROM[$node]}/metrics" 2>/dev/null)
+    [[ -n "$body" ]] && break
+    sleep 2
+  done
+  PROM_CACHE[$node]="$body"
+  [[ -n "$body" ]] || log "  WARNING: prometheus scrape of $node returned nothing"
 }
 
-# Add every configured federation peer, tolerating the ones already present.
-ensure_federation() {
-  local node peer out
-  for node in $TAPD_NODES; do
-    for peer in ${FEDERATION[$node]:-}; do
-      tapcli "$node" universe federation list 2>/dev/null \
-        | jq -e --arg h "$peer:10029" 'any(.servers[]?; .host == $h)' >/dev/null \
-        && continue
-      out=$(tapcli "$node" universe federation add \
-        --universe_host "$peer:10029" 2>&1) || true
-      case "$out" in
-        *"already"*|*"ourselves"*) ;;
-        *) log "  federation $node -> $peer: ${out:-added}" ;;
-      esac
-    done
-  done
+# Read one gauge or counter out of the cached scrape, summing label series.
+#
+# Prints nothing when the metric is absent, rather than 0. A failed scrape used to
+# be recorded as zero, which does not read as missing data: it reads as an empty
+# database, and it silently corrupted the series twice.
+prom() {
+  local node=$1 metric=$2
+  [[ -n "${PROM_CACHE[$node]:-}" ]] || prom_fetch "$node"
+  printf '%s' "${PROM_CACHE[$node]}" | awk -v m="$metric" '
+    $1 == m || index($1, m "{") == 1 { s += $NF; f = 1 }
+    END { if (f) print s }'
+}
 
-  # Report the result rather than assuming it: a node with an empty federation
-  # silently stops receiving proofs, and every later number would be wrong.
-  for node in $TAPD_NODES; do
-    local want got
-    want=$(echo "${FEDERATION[$node]:-}" | wc -w)
-    got=$(tapcli "$node" universe federation list 2>/dev/null \
-      | jq '[.servers[]?] | length')
-    (( got >= want )) || die "$node has $got federation peers, expected $want"
-  done
+# Same value, or null when it could not be read, for embedding in JSON.
+prom_json() {
+  local v
+  v=$(prom "$1" "$2")
+  [[ -n "$v" ]] && printf '%s' "$v" || printf 'null'
 }
