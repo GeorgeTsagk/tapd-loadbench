@@ -55,6 +55,16 @@ if (( height < 101 )); then
   mine $((101 - height))
 fi
 
+# lnd reports synced_to_chain false when the best block is old, and tapd waits
+# for lnd to be synced before it will start. On regtest nothing advances the
+# chain except an epoch, so a gap in the schedule makes the whole stack
+# unstartable until someone mines. Keep the tip fresh.
+tip_age=$(( $(date +%s) - $(btc getblockchaininfo | jq -r .mediantime) ))
+if (( tip_age > 1800 )); then
+  log "chain tip is $((tip_age / 60))m old, mining to refresh it"
+  mine 1
+fi
+
 log "starting remaining nodes"
 $COMPOSE up -d
 
