@@ -1,8 +1,8 @@
 {
-  "epoch": 76,
-  "started_at": "2026-08-21T11:23:36Z",
-  "finished_at": "2026-08-21T11:32:15Z",
-  "duration_s": 518.89,
+  "epoch": 77,
+  "started_at": "2026-08-21T12:23:39Z",
+  "finished_at": "2026-08-21T12:29:21Z",
+  "duration_s": 342.45,
   "schema_note": "v1",
   "versions": {
     "tapd": "0.8.1-alpha commit=v0.8.1-dirty",
@@ -27,559 +27,29 @@
     {
       "name": "mintV2",
       "status": "pass",
-      "duration_s": 8.77
+      "duration_s": 9.88
     },
     {
       "name": "sendV2",
       "status": "pass",
-      "duration_s": 325.92
+      "duration_s": 141.14
     },
     {
       "name": "sync",
       "status": "pass",
-      "duration_s": 179.23
+      "duration_s": 186.55
     }
   ],
   "before": {
-    "block_height": 1317,
+    "block_height": 1333,
     "tapd": {
       "alice-tapd": {
         "backend": "sqlite",
-        "db_bytes": 137371648,
+        "db_bytes": 139681792,
         "storage": {
           "sqlite": {
-            "main": 137371648,
-            "wal": 8075232,
-            "shm": 32768,
-            "backups": 12288
-          }
-        },
-        "proofs_bytes": 419530165,
-        "proofs_files": 11161,
-        "assets": 512,
-        "groups": 5,
-        "universe_roots": 10,
-        "universe_leaves": 9614,
-        "universe_groups": 10,
-        "multiverse_sum": 5,
-        "multiverse_root": "8cf85efdbf3a799f61c96e5e4612283dfac61e6c293389cf7964a5915adb9a24",
-        "mint_batches": 85,
-        "heap_bytes": 104906752,
-        "goroutines": 2679,
-        "grpc_calls": 597527,
-        "universe_syncs": 0,
-        "universe_proofs": 9614,
-        "container": {
-          "mem_bytes": 189943808,
-          "cpu_pct": 0.03,
-          "restart_count": 0,
-          "anon_bytes": 170622976,
-          "file_bytes": 243699712,
-          "kernel_stack_bytes": 376832,
-          "slab_bytes": 16027568,
-          "current_bytes": 431628288,
-          "mem_peak_bytes": 777703424,
-          "cpu_usec": 44903752951,
-          "cpu_user_usec": 41138004193,
-          "cpu_system_usec": 3765748757
-        },
-        "grpc": {
-          "SendMessage": {
-            "calls": 1908,
-            "total_s": 5.039229111999992,
-            "mean_ms": 2.641
-          },
-          "ListFederationServers": {
-            "calls": 72,
-            "total_s": 0.005654935999999999,
-            "mean_ms": 0.079
-          },
-          "ListBatches": {
-            "calls": 213,
-            "total_s": 473.05725456200014,
-            "mean_ms": 2220.926
-          },
-          "GetInfo": {
-            "calls": 190,
-            "total_s": 0.5885730900000002,
-            "mean_ms": 3.098
-          },
-          "AssetRoots": {
-            "calls": 537,
-            "total_s": 44.842665859,
-            "mean_ms": 83.506
-          },
-          "AddrReceives": {
-            "calls": 13838,
-            "total_s": 258.64984583999995,
-            "mean_ms": 18.691
-          },
-          "ListAssets": {
-            "calls": 142,
-            "total_s": 139.97620911199996,
-            "mean_ms": 985.748
-          },
-          "AssetLeafKeys": {
-            "calls": 2963,
-            "total_s": 1345.166740254002,
-            "mean_ms": 453.988
-          },
-          "MailboxInfo": {
-            "calls": 798,
-            "total_s": 0.10732985799999997,
-            "mean_ms": 0.134
-          },
-          "RemoveMessage": {
-            "calls": 106,
-            "total_s": 33.40246689100001,
-            "mean_ms": 315.118
-          },
-          "NewAddr": {
-            "calls": 108,
-            "total_s": 75.98953855399998,
-            "mean_ms": 703.607
-          },
-          "MintAsset": {
-            "calls": 575,
-            "total_s": 5.483933597000001,
-            "mean_ms": 9.537
-          },
-          "QueryProof": {
-            "calls": 573061,
-            "total_s": 2198629.1788462107,
-            "mean_ms": 3836.641
-          },
-          "MultiverseRoot": {
-            "calls": 47,
-            "total_s": 0.5387513230000001,
-            "mean_ms": 11.463
-          },
-          "InsertProof": {
-            "calls": 1908,
-            "total_s": 179.6380025429995,
-            "mean_ms": 94.150
-          },
-          "FinalizeBatch": {
-            "calls": 23,
-            "total_s": 3.1735581489999993,
-            "mean_ms": 137.981
-          },
-          "Info": {
-            "calls": 447,
-            "total_s": 0.009959166000000004,
-            "mean_ms": 0.022
-          },
-          "SendAsset": {
-            "calls": 107,
-            "total_s": 1413.503906939,
-            "mean_ms": 13210.317
-          },
-          "SubscribeMintEvents": {
-            "calls": 23,
-            "total_s": 40.550689436999996,
-            "mean_ms": 1763.073
-          },
-          "UniverseStats": {
-            "calls": 70,
-            "total_s": 0.0017774099999999997,
-            "mean_ms": 0.025
-          },
-          "ListBalances": {
-            "calls": 23,
-            "total_s": 0.420567053,
-            "mean_ms": 18.286
-          }
-        }
-      },
-      "bob-tapd": {
-        "backend": "postgres",
-        "db_bytes": 161889303,
-        "storage": {
-          "postgres": {
-            "total": 161889303,
-            "top_tables": {
-              "universe_events": 77201408,
-              "mssmt_nodes": 47685632,
-              "asset_proofs": 11624448,
-              "universe_leaves": 4292608,
-              "proof_transfer_log": 1474560,
-              "asset_transfer_outputs": 1146880,
-              "chain_txns": 1015808,
-              "genesis_assets": 860160,
-              "internal_keys": 548864,
-              "asset_group_witnesses": 540672
-            }
-          }
-        },
-        "proofs_bytes": 32346360,
-        "proofs_files": 743,
-        "assets": 7,
-        "groups": 4,
-        "universe_roots": 10,
-        "universe_leaves": 591535,
-        "universe_groups": 10,
-        "multiverse_sum": 5,
-        "multiverse_root": "8cf85efdbf3a799f61c96e5e4612283dfac61e6c293389cf7964a5915adb9a24",
-        "mint_batches": 0,
-        "heap_bytes": 80396288,
-        "goroutines": 2743,
-        "grpc_calls": 13716,
-        "universe_syncs": 0,
-        "universe_proofs": 591535,
-        "container": {
-          "mem_bytes": 123609088,
-          "cpu_pct": 0.00,
-          "restart_count": 0,
-          "anon_bytes": 118878208,
-          "file_bytes": 23064576,
-          "kernel_stack_bytes": 376832,
-          "slab_bytes": 2212976,
-          "current_bytes": 145227776,
-          "mem_peak_bytes": 227540992,
-          "cpu_usec": 4049339680,
-          "cpu_user_usec": 3032206510,
-          "cpu_system_usec": 1017133170
-        },
-        "grpc": {
-          "SendMessage": {
-            "calls": 1986,
-            "total_s": 5.1505683000000015,
-            "mean_ms": 2.593
-          },
-          "ListFederationServers": {
-            "calls": 72,
-            "total_s": 0.032719741,
-            "mean_ms": 0.454
-          },
-          "ListBatches": {
-            "calls": 47,
-            "total_s": 0.059427548000000004,
-            "mean_ms": 1.264
-          },
-          "GetInfo": {
-            "calls": 143,
-            "total_s": 0.44524978600000015,
-            "mean_ms": 3.114
-          },
-          "AssetRoots": {
-            "calls": 272,
-            "total_s": 5.886428492999998,
-            "mean_ms": 21.641
-          },
-          "AddrReceives": {
-            "calls": 6930,
-            "total_s": 42.53117063699995,
-            "mean_ms": 6.137
-          },
-          "ListAssets": {
-            "calls": 117,
-            "total_s": 4.797491599000001,
-            "mean_ms": 41.004
-          },
-          "MailboxInfo": {
-            "calls": 796,
-            "total_s": 0.2736954070000001,
-            "mean_ms": 0.344
-          },
-          "RemoveMessage": {
-            "calls": 105,
-            "total_s": 0.16827662,
-            "mean_ms": 1.603
-          },
-          "NewAddr": {
-            "calls": 109,
-            "total_s": 3.3111783069999996,
-            "mean_ms": 30.378
-          },
-          "AddFederationServer": {
-            "calls": 23,
-            "total_s": 3985.882715154001,
-            "mean_ms": 173299.248
-          },
-          "QueryProof": {
-            "calls": 116,
-            "total_s": 2.776661908,
-            "mean_ms": 23.937
-          },
-          "MultiverseRoot": {
-            "calls": 47,
-            "total_s": 0.06793031999999999,
-            "mean_ms": 1.445
-          },
-          "InsertProof": {
-            "calls": 1986,
-            "total_s": 130.15971385000003,
-            "mean_ms": 65.539
-          },
-          "Info": {
-            "calls": 428,
-            "total_s": 0.009187201000000002,
-            "mean_ms": 0.021
-          },
-          "SendAsset": {
-            "calls": 107,
-            "total_s": 22.814645775000006,
-            "mean_ms": 213.221
-          },
-          "UniverseStats": {
-            "calls": 47,
-            "total_s": 0.0013701840000000002,
-            "mean_ms": 0.029
-          },
-          "ListBalances": {
-            "calls": 23,
-            "total_s": 0.24830570500000004,
-            "mean_ms": 10.796
-          }
-        }
-      },
-      "uni-tapd": {
-        "backend": "sqlite",
-        "db_bytes": 10723328,
-        "storage": {
-          "sqlite": {
-            "main": 10723328,
-            "wal": 0,
-            "shm": 32768,
-            "backups": 12288
-          }
-        },
-        "proofs_bytes": 4096,
-        "proofs_files": 0,
-        "assets": 0,
-        "groups": 0,
-        "universe_roots": 6,
-        "universe_leaves": 2035,
-        "universe_groups": 6,
-        "multiverse_sum": 5,
-        "multiverse_root": "8cf85efdbf3a799f61c96e5e4612283dfac61e6c293389cf7964a5915adb9a24",
-        "mint_batches": 0,
-        "heap_bytes": 79822848,
-        "goroutines": 108,
-        "grpc_calls": 3634,
-        "universe_syncs": 0,
-        "universe_proofs": 2035,
-        "container": {
-          "mem_bytes": 85827584,
-          "cpu_pct": 0.00,
-          "restart_count": 0,
-          "anon_bytes": 83079168,
-          "file_bytes": 11452416,
-          "kernel_stack_bytes": 344064,
-          "slab_bytes": 841912,
-          "current_bytes": 96505856,
-          "mem_peak_bytes": 234987520,
-          "cpu_usec": 93870114,
-          "cpu_user_usec": 77062282,
-          "cpu_system_usec": 16807832
-        },
-        "grpc": {}
-      },
-      "uni2-tapd": {
-        "backend": "postgres",
-        "db_bytes": 22903831,
-        "storage": {
-          "postgres": {
-            "total": 22903831,
-            "top_tables": {
-              "mssmt_nodes": 7872512,
-              "universe_leaves": 1318912,
-              "genesis_assets": 770048,
-              "asset_group_witnesses": 442368,
-              "universe_events": 385024,
-              "chain_txns": 147456,
-              "universe_roots": 98304,
-              "genesis_points": 90112,
-              "internal_keys": 81920,
-              "asset_groups": 81920
-            }
-          }
-        },
-        "proofs_bytes": 4096,
-        "proofs_files": 0,
-        "assets": 0,
-        "groups": 0,
-        "universe_roots": 6,
-        "universe_leaves": 2035,
-        "universe_groups": 6,
-        "multiverse_sum": 5,
-        "multiverse_root": "8cf85efdbf3a799f61c96e5e4612283dfac61e6c293389cf7964a5915adb9a24",
-        "mint_batches": 0,
-        "heap_bytes": 43229184,
-        "goroutines": 102,
-        "grpc_calls": 5935,
-        "universe_syncs": 0,
-        "universe_proofs": 2035,
-        "container": {
-          "mem_bytes": 30646272,
-          "cpu_pct": 0.00,
-          "restart_count": 0,
-          "anon_bytes": 27680768,
-          "file_bytes": 2031616,
-          "kernel_stack_bytes": 344064,
-          "slab_bytes": 603040,
-          "current_bytes": 31072256,
-          "mem_peak_bytes": 55791616,
-          "cpu_usec": 51930825,
-          "cpu_user_usec": 36003281,
-          "cpu_system_usec": 15927543
-        },
-        "grpc": {}
-      }
-    },
-    "containers": {
-      "bitcoind": {
-        "mem_bytes": 52420608,
-        "cpu_pct": 0.18,
-        "restart_count": 0,
-        "anon_bytes": 45760512,
-        "file_bytes": 7176192,
-        "kernel_stack_bytes": 671744,
-        "slab_bytes": 998560,
-        "current_bytes": 55222272,
-        "mem_peak_bytes": 62119936,
-        "cpu_usec": 937414160,
-        "cpu_user_usec": 524013869,
-        "cpu_system_usec": 413400291
-      },
-      "pg": {
-        "mem_bytes": 204455936,
-        "cpu_pct": 0.11,
-        "restart_count": 0,
-        "anon_bytes": 31014912,
-        "file_bytes": 388571136,
-        "kernel_stack_bytes": 327680,
-        "slab_bytes": 15067608,
-        "current_bytes": 440193024,
-        "mem_peak_bytes": 577650688,
-        "cpu_usec": 32837413574,
-        "cpu_user_usec": 24951247954,
-        "cpu_system_usec": 7886165619
-      },
-      "alice": {
-        "mem_bytes": 60043264,
-        "cpu_pct": 0.03,
-        "restart_count": 0,
-        "anon_bytes": 57290752,
-        "file_bytes": 5234688,
-        "kernel_stack_bytes": 360448,
-        "slab_bytes": 683952,
-        "current_bytes": 64651264,
-        "mem_peak_bytes": 310296576,
-        "cpu_usec": 973891332,
-        "cpu_user_usec": 625104287,
-        "cpu_system_usec": 348787045
-      },
-      "bob": {
-        "mem_bytes": 54894592,
-        "cpu_pct": 0.02,
-        "restart_count": 0,
-        "anon_bytes": 52215808,
-        "file_bytes": 3891200,
-        "kernel_stack_bytes": 376832,
-        "slab_bytes": 645584,
-        "current_bytes": 58257408,
-        "mem_peak_bytes": 296247296,
-        "cpu_usec": 1467455115,
-        "cpu_user_usec": 818605220,
-        "cpu_system_usec": 648849894
-      },
-      "uni": {
-        "mem_bytes": 37408768,
-        "cpu_pct": 0.03,
-        "restart_count": 0,
-        "anon_bytes": 34877440,
-        "file_bytes": 3665920,
-        "kernel_stack_bytes": 393216,
-        "slab_bytes": 632896,
-        "current_bytes": 40742912,
-        "mem_peak_bytes": 297152512,
-        "cpu_usec": 113725857,
-        "cpu_user_usec": 76688827,
-        "cpu_system_usec": 37037029
-      },
-      "uni2": {
-        "mem_bytes": 41017344,
-        "cpu_pct": 0.02,
-        "restart_count": 0,
-        "anon_bytes": 38592512,
-        "file_bytes": 2220032,
-        "kernel_stack_bytes": 376832,
-        "slab_bytes": 624792,
-        "current_bytes": 42913792,
-        "mem_peak_bytes": 296407040,
-        "cpu_usec": 104849881,
-        "cpu_user_usec": 71813121,
-        "cpu_system_usec": 33036759
-      },
-      "alice-tapd": {
-        "mem_bytes": 189943808,
-        "cpu_pct": 0.03,
-        "restart_count": 0,
-        "anon_bytes": 170622976,
-        "file_bytes": 243699712,
-        "kernel_stack_bytes": 376832,
-        "slab_bytes": 16027568,
-        "current_bytes": 431628288,
-        "mem_peak_bytes": 777703424,
-        "cpu_usec": 44903752951,
-        "cpu_user_usec": 41138004193,
-        "cpu_system_usec": 3765748757
-      },
-      "bob-tapd": {
-        "mem_bytes": 123609088,
-        "cpu_pct": 0.00,
-        "restart_count": 0,
-        "anon_bytes": 118878208,
-        "file_bytes": 23064576,
-        "kernel_stack_bytes": 376832,
-        "slab_bytes": 2212976,
-        "current_bytes": 145227776,
-        "mem_peak_bytes": 227540992,
-        "cpu_usec": 4049339680,
-        "cpu_user_usec": 3032206510,
-        "cpu_system_usec": 1017133170
-      },
-      "uni-tapd": {
-        "mem_bytes": 85827584,
-        "cpu_pct": 0.00,
-        "restart_count": 0,
-        "anon_bytes": 83079168,
-        "file_bytes": 11452416,
-        "kernel_stack_bytes": 344064,
-        "slab_bytes": 841912,
-        "current_bytes": 96505856,
-        "mem_peak_bytes": 234987520,
-        "cpu_usec": 93870114,
-        "cpu_user_usec": 77062282,
-        "cpu_system_usec": 16807832
-      },
-      "uni2-tapd": {
-        "mem_bytes": 30646272,
-        "cpu_pct": 0.00,
-        "restart_count": 0,
-        "anon_bytes": 27680768,
-        "file_bytes": 2031616,
-        "kernel_stack_bytes": 344064,
-        "slab_bytes": 603040,
-        "current_bytes": 31072256,
-        "mem_peak_bytes": 55791616,
-        "cpu_usec": 51930825,
-        "cpu_user_usec": 36003281,
-        "cpu_system_usec": 15927543
-      }
-    }
-  },
-  "after": {
-    "block_height": 1332,
-    "tapd": {
-      "alice-tapd": {
-        "backend": "sqlite",
-        "db_bytes": 139661312,
-        "storage": {
-          "sqlite": {
-            "main": 139657216,
-            "wal": 8075232,
+            "main": 139673600,
+            "wal": 8367752,
             "shm": 32768,
             "backups": 12288
           }
@@ -589,29 +59,29 @@
         "assets": 512,
         "groups": 5,
         "universe_roots": 10,
-        "universe_leaves": 9614,
+        "universe_leaves": 9901,
         "universe_groups": 10,
         "multiverse_sum": 5,
         "multiverse_root": "2e2aecc42ed6854eb1ea45e17d407330b1ab36470da165d30f4dcb4ee494df1f",
         "mint_batches": 86,
-        "heap_bytes": 147709952,
-        "goroutines": 2760,
-        "grpc_calls": 618869,
+        "heap_bytes": 137363456,
+        "goroutines": 2725,
+        "grpc_calls": 630883,
         "universe_syncs": 0,
-        "universe_proofs": 9614,
+        "universe_proofs": 9901,
         "container": {
-          "mem_bytes": 416985088,
-          "cpu_pct": 0.06,
+          "mem_bytes": 512696320,
+          "cpu_pct": 0.01,
           "restart_count": 0,
-          "anon_bytes": 396431360,
-          "file_bytes": 256024576,
-          "kernel_stack_bytes": 376832,
-          "slab_bytes": 16839000,
-          "current_bytes": 670920704,
-          "mem_peak_bytes": 777703424,
-          "cpu_usec": 46481996778,
-          "cpu_user_usec": 42573349858,
-          "cpu_system_usec": 3908646920
+          "anon_bytes": 491950080,
+          "file_bytes": 256536576,
+          "kernel_stack_bytes": 393216,
+          "slab_bytes": 16868944,
+          "current_bytes": 767172608,
+          "mem_peak_bytes": 781516800,
+          "cpu_usec": 48492301050,
+          "cpu_user_usec": 44402403792,
+          "cpu_system_usec": 4089897258
         },
         "grpc": {
           "SendMessage": {
@@ -620,24 +90,24 @@
             "mean_ms": 2.635
           },
           "ListFederationServers": {
-            "calls": 72,
-            "total_s": 0.005654935999999999,
+            "calls": 75,
+            "total_s": 0.005919995,
             "mean_ms": 0.079
           },
           "ListBatches": {
-            "calls": 222,
-            "total_s": 485.3504138130001,
-            "mean_ms": 2186.263
+            "calls": 223,
+            "total_s": 491.8635143600001,
+            "mean_ms": 2205.666
           },
           "GetInfo": {
-            "calls": 193,
-            "total_s": 0.5978260360000003,
-            "mean_ms": 3.098
+            "calls": 198,
+            "total_s": 0.6131517060000004,
+            "mean_ms": 3.097
           },
           "AssetRoots": {
-            "calls": 568,
-            "total_s": 45.10353814500001,
-            "mean_ms": 79.408
+            "calls": 572,
+            "total_s": 45.270613186000006,
+            "mean_ms": 79.144
           },
           "AddrReceives": {
             "calls": 13966,
@@ -645,14 +115,14 @@
             "mean_ms": 18.579
           },
           "ListAssets": {
-            "calls": 146,
-            "total_s": 143.16803447499996,
-            "mean_ms": 980.603
+            "calls": 148,
+            "total_s": 145.21060695099996,
+            "mean_ms": 981.153
           },
           "AssetLeafKeys": {
-            "calls": 3069,
-            "total_s": 1395.7629660660011,
-            "mean_ms": 454.794
+            "calls": 3114,
+            "total_s": 1409.9266008190016,
+            "mean_ms": 452.770
           },
           "MailboxInfo": {
             "calls": 823,
@@ -675,14 +145,14 @@
             "mean_ms": 9.599
           },
           "QueryProof": {
-            "calls": 593811,
-            "total_s": 2301088.4893227066,
-            "mean_ms": 3875.119
+            "calls": 605763,
+            "total_s": 2324935.537760633,
+            "mean_ms": 3838.028
           },
           "MultiverseRoot": {
-            "calls": 48,
-            "total_s": 0.5388705970000001,
-            "mean_ms": 11.226
+            "calls": 49,
+            "total_s": 0.5390189070000001,
+            "mean_ms": 11.000
           },
           "InsertProof": {
             "calls": 2015,
@@ -710,9 +180,9 @@
             "mean_ms": 1772.287
           },
           "UniverseStats": {
-            "calls": 72,
-            "total_s": 0.0018288669999999996,
-            "mean_ms": 0.025
+            "calls": 73,
+            "total_s": 0.0018618589999999996,
+            "mean_ms": 0.026
           },
           "ListBalances": {
             "calls": 24,
@@ -723,21 +193,21 @@
       },
       "bob-tapd": {
         "backend": "postgres",
-        "db_bytes": 157662231,
+        "db_bytes": 163617815,
         "storage": {
           "postgres": {
-            "total": 157662231,
+            "total": 163617815,
             "top_tables": {
-              "universe_events": 77545472,
-              "mssmt_nodes": 42778624,
+              "universe_events": 78987264,
+              "mssmt_nodes": 46997504,
               "asset_proofs": 11870208,
-              "universe_leaves": 4333568,
+              "universe_leaves": 4440064,
               "proof_transfer_log": 1499136,
               "asset_transfer_outputs": 1155072,
               "chain_txns": 1032192,
               "genesis_assets": 884736,
               "internal_keys": 557056,
-              "asset_group_witnesses": 540672
+              "asset_group_witnesses": 548864
             }
           }
         },
@@ -746,29 +216,29 @@
         "assets": 7,
         "groups": 5,
         "universe_roots": 10,
-        "universe_leaves": 591535,
+        "universe_leaves": 598297,
         "universe_groups": 10,
         "multiverse_sum": 5,
         "multiverse_root": "2e2aecc42ed6854eb1ea45e17d407330b1ab36470da165d30f4dcb4ee494df1f",
         "mint_batches": 0,
-        "heap_bytes": 111443968,
-        "goroutines": 2827,
-        "grpc_calls": 14140,
+        "heap_bytes": 117817344,
+        "goroutines": 2807,
+        "grpc_calls": 14153,
         "universe_syncs": 0,
-        "universe_proofs": 591535,
+        "universe_proofs": 598297,
         "container": {
-          "mem_bytes": 146927616,
-          "cpu_pct": 0.05,
+          "mem_bytes": 189931520,
+          "cpu_pct": 11.85,
           "restart_count": 0,
-          "anon_bytes": 142086144,
-          "file_bytes": 23830528,
+          "anon_bytes": 185090048,
+          "file_bytes": 23957504,
           "kernel_stack_bytes": 376832,
-          "slab_bytes": 2320760,
-          "current_bytes": 169312256,
-          "mem_peak_bytes": 227540992,
-          "cpu_usec": 4094879295,
-          "cpu_user_usec": 3067008474,
-          "cpu_system_usec": 1027870820
+          "slab_bytes": 2307800,
+          "current_bytes": 212443136,
+          "mem_peak_bytes": 239067136,
+          "cpu_usec": 4279165182,
+          "cpu_user_usec": 3205366557,
+          "cpu_system_usec": 1073799454
         },
         "grpc": {
           "SendMessage": {
@@ -777,24 +247,24 @@
             "mean_ms": 2.593
           },
           "ListFederationServers": {
-            "calls": 72,
-            "total_s": 0.032719741,
-            "mean_ms": 0.454
+            "calls": 75,
+            "total_s": 0.034462150999999996,
+            "mean_ms": 0.459
           },
           "ListBatches": {
-            "calls": 48,
-            "total_s": 0.0608826,
+            "calls": 49,
+            "total_s": 0.062133124000000005,
             "mean_ms": 1.268
           },
           "GetInfo": {
-            "calls": 145,
-            "total_s": 0.45033277400000016,
-            "mean_ms": 3.106
+            "calls": 149,
+            "total_s": 0.4627183010000001,
+            "mean_ms": 3.105
           },
           "AssetRoots": {
-            "calls": 294,
-            "total_s": 6.046296701999996,
-            "mean_ms": 20.566
+            "calls": 295,
+            "total_s": 6.199625439999996,
+            "mean_ms": 21.016
           },
           "AddrReceives": {
             "calls": 7094,
@@ -802,9 +272,9 @@
             "mean_ms": 6.089
           },
           "ListAssets": {
-            "calls": 120,
-            "total_s": 4.892290762,
-            "mean_ms": 40.769
+            "calls": 122,
+            "total_s": 4.967290187,
+            "mean_ms": 40.715
           },
           "MailboxInfo": {
             "calls": 821,
@@ -832,9 +302,9 @@
             "mean_ms": 24.168
           },
           "MultiverseRoot": {
-            "calls": 48,
-            "total_s": 0.06927291,
-            "mean_ms": 1.443
+            "calls": 49,
+            "total_s": 0.07036364299999999,
+            "mean_ms": 1.436
           },
           "InsertProof": {
             "calls": 2065,
@@ -852,8 +322,8 @@
             "mean_ms": 211.184
           },
           "UniverseStats": {
-            "calls": 48,
-            "total_s": 0.0013964040000000002,
+            "calls": 49,
+            "total_s": 0.001422152,
             "mean_ms": 0.029
           },
           "ListBalances": {
@@ -868,8 +338,8 @@
         "db_bytes": 10846208,
         "storage": {
           "sqlite": {
-            "main": 10805248,
-            "wal": 4321912,
+            "main": 10846208,
+            "wal": 8272,
             "shm": 32768,
             "backups": 12288
           }
@@ -879,29 +349,29 @@
         "assets": 0,
         "groups": 0,
         "universe_roots": 6,
-        "universe_leaves": 2035,
+        "universe_leaves": 2060,
         "universe_groups": 6,
         "multiverse_sum": 5,
         "multiverse_root": "2e2aecc42ed6854eb1ea45e17d407330b1ab36470da165d30f4dcb4ee494df1f",
         "mint_batches": 0,
-        "heap_bytes": 79282176,
-        "goroutines": 113,
-        "grpc_calls": 4261,
+        "heap_bytes": 79642624,
+        "goroutines": 108,
+        "grpc_calls": 4344,
         "universe_syncs": 0,
-        "universe_proofs": 2035,
+        "universe_proofs": 2060,
         "container": {
-          "mem_bytes": 186916864,
+          "mem_bytes": 85647360,
           "cpu_pct": 0.00,
           "restart_count": 0,
-          "anon_bytes": 184074240,
-          "file_bytes": 15867904,
+          "anon_bytes": 83087360,
+          "file_bytes": 11665408,
           "kernel_stack_bytes": 344064,
-          "slab_bytes": 1011808,
-          "current_bytes": 202010624,
+          "slab_bytes": 849616,
+          "current_bytes": 96473088,
           "mem_peak_bytes": 234987520,
-          "cpu_usec": 125383247,
-          "cpu_user_usec": 106451965,
-          "cpu_system_usec": 18931282
+          "cpu_usec": 127301677,
+          "cpu_user_usec": 107988997,
+          "cpu_system_usec": 19312679
         },
         "grpc": {}
       },
@@ -930,206 +400,727 @@
         "assets": 0,
         "groups": 0,
         "universe_roots": 6,
-        "universe_leaves": 2035,
+        "universe_leaves": 2060,
         "universe_groups": 6,
         "multiverse_sum": 5,
         "multiverse_root": "2e2aecc42ed6854eb1ea45e17d407330b1ab36470da165d30f4dcb4ee494df1f",
         "mint_batches": 0,
-        "heap_bytes": 42508288,
-        "goroutines": 102,
-        "grpc_calls": 5967,
+        "heap_bytes": 43155456,
+        "goroutines": 108,
+        "grpc_calls": 6149,
         "universe_syncs": 0,
-        "universe_proofs": 2035,
+        "universe_proofs": 2060,
         "container": {
-          "mem_bytes": 30924800,
-          "cpu_pct": 0.00,
+          "mem_bytes": 30965760,
+          "cpu_pct": 0.01,
           "restart_count": 0,
-          "anon_bytes": 27828224,
-          "file_bytes": 2166784,
+          "anon_bytes": 27799552,
+          "file_bytes": 2240512,
           "kernel_stack_bytes": 344064,
-          "slab_bytes": 603040,
-          "current_bytes": 31350784,
+          "slab_bytes": 603152,
+          "current_bytes": 31395840,
           "mem_peak_bytes": 55791616,
-          "cpu_usec": 52736477,
-          "cpu_user_usec": 36536680,
-          "cpu_system_usec": 16199796
+          "cpu_usec": 54093432,
+          "cpu_user_usec": 37484889,
+          "cpu_system_usec": 16608543
         },
         "grpc": {}
       }
     },
     "containers": {
       "bitcoind": {
-        "mem_bytes": 52506624,
-        "cpu_pct": 0.18,
+        "mem_bytes": 52789248,
+        "cpu_pct": 0.12,
         "restart_count": 0,
-        "anon_bytes": 45850624,
-        "file_bytes": 7184384,
+        "anon_bytes": 45875200,
+        "file_bytes": 7708672,
         "kernel_stack_bytes": 671744,
-        "slab_bytes": 996720,
-        "current_bytes": 55316480,
+        "slab_bytes": 1000368,
+        "current_bytes": 55873536,
         "mem_peak_bytes": 62119936,
-        "cpu_usec": 942334883,
-        "cpu_user_usec": 526878462,
-        "cpu_system_usec": 415456421
+        "cpu_usec": 967963819,
+        "cpu_user_usec": 540425984,
+        "cpu_system_usec": 427537834
       },
       "pg": {
-        "mem_bytes": 219598848,
-        "cpu_pct": 0.00,
+        "mem_bytes": 212848640,
+        "cpu_pct": 94.35,
         "restart_count": 0,
-        "anon_bytes": 46202880,
-        "file_bytes": 368074752,
-        "kernel_stack_bytes": 311296,
-        "slab_bytes": 14507448,
-        "current_bytes": 434839552,
+        "anon_bytes": 35721216,
+        "file_bytes": 397926400,
+        "kernel_stack_bytes": 327680,
+        "slab_bytes": 15595936,
+        "current_bytes": 457445376,
         "mem_peak_bytes": 577650688,
-        "cpu_usec": 32993443694,
-        "cpu_user_usec": 25070774593,
-        "cpu_system_usec": 7922669100
+        "cpu_usec": 33828148289,
+        "cpu_user_usec": 25729796430,
+        "cpu_system_usec": 8098355829
       },
       "alice": {
-        "mem_bytes": 81711104,
+        "mem_bytes": 61751296,
         "cpu_pct": 0.00,
         "restart_count": 0,
-        "anon_bytes": 78958592,
-        "file_bytes": 5316608,
+        "anon_bytes": 58990592,
+        "file_bytes": 5439488,
         "kernel_stack_bytes": 360448,
-        "slab_bytes": 685552,
-        "current_bytes": 86401024,
+        "slab_bytes": 690096,
+        "current_bytes": 66564096,
         "mem_peak_bytes": 310296576,
-        "cpu_usec": 987237826,
-        "cpu_user_usec": 632981177,
-        "cpu_system_usec": 354256648
+        "cpu_usec": 1035884065,
+        "cpu_user_usec": 657529356,
+        "cpu_system_usec": 378354708
       },
       "bob": {
-        "mem_bytes": 61820928,
-        "cpu_pct": 0.00,
+        "mem_bytes": 74719232,
+        "cpu_pct": 0.02,
         "restart_count": 0,
-        "anon_bytes": 59142144,
-        "file_bytes": 3969024,
+        "anon_bytes": 71892992,
+        "file_bytes": 4157440,
         "kernel_stack_bytes": 376832,
-        "slab_bytes": 646192,
-        "current_bytes": 65261568,
+        "slab_bytes": 663536,
+        "current_bytes": 78217216,
         "mem_peak_bytes": 296247296,
-        "cpu_usec": 1475514051,
-        "cpu_user_usec": 823108088,
-        "cpu_system_usec": 652405962
+        "cpu_usec": 1502687379,
+        "cpu_user_usec": 838145295,
+        "cpu_system_usec": 664542084
       },
       "uni": {
-        "mem_bytes": 37629952,
-        "cpu_pct": 0.00,
+        "mem_bytes": 37691392,
+        "cpu_pct": 0.02,
         "restart_count": 0,
-        "anon_bytes": 35098624,
+        "anon_bytes": 35160064,
         "file_bytes": 3678208,
         "kernel_stack_bytes": 393216,
-        "slab_bytes": 632416,
-        "current_bytes": 40976384,
+        "slab_bytes": 633776,
+        "current_bytes": 41037824,
         "mem_peak_bytes": 297152512,
-        "cpu_usec": 113946047,
-        "cpu_user_usec": 76825486,
-        "cpu_system_usec": 37120561
+        "cpu_usec": 115395440,
+        "cpu_user_usec": 77796128,
+        "cpu_system_usec": 37599311
       },
       "uni2": {
-        "mem_bytes": 41189376,
+        "mem_bytes": 40681472,
         "cpu_pct": 0.00,
         "restart_count": 0,
-        "anon_bytes": 38760448,
-        "file_bytes": 2232320,
+        "anon_bytes": 38256640,
+        "file_bytes": 2244608,
         "kernel_stack_bytes": 376832,
-        "slab_bytes": 625128,
-        "current_bytes": 43098112,
+        "slab_bytes": 625464,
+        "current_bytes": 42602496,
         "mem_peak_bytes": 296407040,
-        "cpu_usec": 105057689,
-        "cpu_user_usec": 71945744,
-        "cpu_system_usec": 33111945
+        "cpu_usec": 106159648,
+        "cpu_user_usec": 72691267,
+        "cpu_system_usec": 33468380
       },
       "alice-tapd": {
-        "mem_bytes": 416985088,
-        "cpu_pct": 0.06,
+        "mem_bytes": 512696320,
+        "cpu_pct": 0.01,
         "restart_count": 0,
-        "anon_bytes": 396431360,
-        "file_bytes": 256024576,
-        "kernel_stack_bytes": 376832,
-        "slab_bytes": 16839000,
-        "current_bytes": 670920704,
-        "mem_peak_bytes": 777703424,
-        "cpu_usec": 46481996778,
-        "cpu_user_usec": 42573349858,
-        "cpu_system_usec": 3908646920
+        "anon_bytes": 491950080,
+        "file_bytes": 256536576,
+        "kernel_stack_bytes": 393216,
+        "slab_bytes": 16868944,
+        "current_bytes": 767172608,
+        "mem_peak_bytes": 781516800,
+        "cpu_usec": 48492301050,
+        "cpu_user_usec": 44402403792,
+        "cpu_system_usec": 4089897258
       },
       "bob-tapd": {
-        "mem_bytes": 146927616,
-        "cpu_pct": 0.05,
+        "mem_bytes": 189931520,
+        "cpu_pct": 11.85,
         "restart_count": 0,
-        "anon_bytes": 142086144,
-        "file_bytes": 23830528,
+        "anon_bytes": 185090048,
+        "file_bytes": 23957504,
         "kernel_stack_bytes": 376832,
-        "slab_bytes": 2320760,
-        "current_bytes": 169312256,
-        "mem_peak_bytes": 227540992,
-        "cpu_usec": 4094879295,
-        "cpu_user_usec": 3067008474,
-        "cpu_system_usec": 1027870820
+        "slab_bytes": 2307800,
+        "current_bytes": 212443136,
+        "mem_peak_bytes": 239067136,
+        "cpu_usec": 4279165182,
+        "cpu_user_usec": 3205366557,
+        "cpu_system_usec": 1073799454
       },
       "uni-tapd": {
-        "mem_bytes": 186916864,
+        "mem_bytes": 85647360,
         "cpu_pct": 0.00,
         "restart_count": 0,
-        "anon_bytes": 184074240,
-        "file_bytes": 15867904,
+        "anon_bytes": 83087360,
+        "file_bytes": 11665408,
         "kernel_stack_bytes": 344064,
-        "slab_bytes": 1011808,
-        "current_bytes": 202010624,
+        "slab_bytes": 849616,
+        "current_bytes": 96473088,
         "mem_peak_bytes": 234987520,
-        "cpu_usec": 125383247,
-        "cpu_user_usec": 106451965,
-        "cpu_system_usec": 18931282
+        "cpu_usec": 127301677,
+        "cpu_user_usec": 107988997,
+        "cpu_system_usec": 19312679
       },
       "uni2-tapd": {
-        "mem_bytes": 30924800,
+        "mem_bytes": 30965760,
+        "cpu_pct": 0.01,
+        "restart_count": 0,
+        "anon_bytes": 27799552,
+        "file_bytes": 2240512,
+        "kernel_stack_bytes": 344064,
+        "slab_bytes": 603152,
+        "current_bytes": 31395840,
+        "mem_peak_bytes": 55791616,
+        "cpu_usec": 54093432,
+        "cpu_user_usec": 37484889,
+        "cpu_system_usec": 16608543
+      }
+    }
+  },
+  "after": {
+    "block_height": 1348,
+    "tapd": {
+      "alice-tapd": {
+        "backend": "sqlite",
+        "db_bytes": 141565952,
+        "storage": {
+          "sqlite": {
+            "main": 141565952,
+            "wal": 8400712,
+            "shm": 32768,
+            "backups": 12288
+          }
+        },
+        "proofs_bytes": 433380419,
+        "proofs_files": 11456,
+        "assets": 512,
+        "groups": 5,
+        "universe_roots": 10,
+        "universe_leaves": 9901,
+        "universe_groups": 10,
+        "multiverse_sum": 5,
+        "multiverse_root": "11f8fb78b114cd289257cf314e5f8ea0fd99d78b75fc08a08d4433f8c21c58d5",
+        "mint_batches": 87,
+        "heap_bytes": 152076288,
+        "goroutines": 2816,
+        "grpc_calls": 647837,
+        "universe_syncs": 0,
+        "universe_proofs": 9901,
+        "container": {
+          "mem_bytes": 433238016,
+          "cpu_pct": 102.94,
+          "restart_count": 0,
+          "anon_bytes": 412000256,
+          "file_bytes": 263811072,
+          "kernel_stack_bytes": 393216,
+          "slab_bytes": 17414160,
+          "current_bytes": 694988800,
+          "mem_peak_bytes": 804458496,
+          "cpu_usec": 49405853383,
+          "cpu_user_usec": 45230430894,
+          "cpu_system_usec": 4175425488
+        },
+        "grpc": {
+          "SendMessage": {
+            "calls": 2064,
+            "total_s": 5.4351752569999885,
+            "mean_ms": 2.633
+          },
+          "ListFederationServers": {
+            "calls": 75,
+            "total_s": 0.005919995,
+            "mean_ms": 0.079
+          },
+          "ListBatches": {
+            "calls": 232,
+            "total_s": 504.3196034120001,
+            "mean_ms": 2173.791
+          },
+          "GetInfo": {
+            "calls": 201,
+            "total_s": 0.6221759200000003,
+            "mean_ms": 3.095
+          },
+          "AssetRoots": {
+            "calls": 593,
+            "total_s": 45.52118602500001,
+            "mean_ms": 76.764
+          },
+          "AddrReceives": {
+            "calls": 14122,
+            "total_s": 260.46222506800024,
+            "mean_ms": 18.444
+          },
+          "ListAssets": {
+            "calls": 152,
+            "total_s": 148.32561609799995,
+            "mean_ms": 975.826
+          },
+          "AssetLeafKeys": {
+            "calls": 3202,
+            "total_s": 1457.9513026460017,
+            "mean_ms": 455.325
+          },
+          "MailboxInfo": {
+            "calls": 843,
+            "total_s": 0.11402881199999998,
+            "mean_ms": 0.135
+          },
+          "RemoveMessage": {
+            "calls": 115,
+            "total_s": 35.25325824200002,
+            "mean_ms": 306.550
+          },
+          "NewAddr": {
+            "calls": 119,
+            "total_s": 76.38452549599998,
+            "mean_ms": 641.887
+          },
+          "MintAsset": {
+            "calls": 625,
+            "total_s": 6.029993215999998,
+            "mean_ms": 9.648
+          },
+          "QueryProof": {
+            "calls": 622252,
+            "total_s": 2423172.0378848067,
+            "mean_ms": 3894.197
+          },
+          "MultiverseRoot": {
+            "calls": 50,
+            "total_s": 0.539180461,
+            "mean_ms": 10.784
+          },
+          "InsertProof": {
+            "calls": 2064,
+            "total_s": 191.4545806939995,
+            "mean_ms": 92.759
+          },
+          "FinalizeBatch": {
+            "calls": 25,
+            "total_s": 3.456543350999999,
+            "mean_ms": 138.262
+          },
+          "Info": {
+            "calls": 485,
+            "total_s": 0.010845858000000007,
+            "mean_ms": 0.022
+          },
+          "SendAsset": {
+            "calls": 116,
+            "total_s": 1571.212138423,
+            "mean_ms": 13544.932
+          },
+          "SubscribeMintEvents": {
+            "calls": 25,
+            "total_s": 44.591207045999994,
+            "mean_ms": 1783.648
+          },
+          "UniverseStats": {
+            "calls": 75,
+            "total_s": 0.0019163509999999995,
+            "mean_ms": 0.026
+          },
+          "ListBalances": {
+            "calls": 25,
+            "total_s": 0.46272011300000004,
+            "mean_ms": 18.509
+          }
+        }
+      },
+      "bob-tapd": {
+        "backend": "postgres",
+        "db_bytes": 164011031,
+        "storage": {
+          "postgres": {
+            "total": 164011031,
+            "top_tables": {
+              "universe_events": 79167488,
+              "mssmt_nodes": 46997504,
+              "asset_proofs": 11984896,
+              "universe_leaves": 4456448,
+              "proof_transfer_log": 1499136,
+              "asset_transfer_outputs": 1171456,
+              "chain_txns": 1032192,
+              "genesis_assets": 884736,
+              "internal_keys": 557056,
+              "asset_group_witnesses": 548864
+            }
+          }
+        },
+        "proofs_bytes": 33537244,
+        "proofs_files": 763,
+        "assets": 5,
+        "groups": 3,
+        "universe_roots": 10,
+        "universe_leaves": 598297,
+        "universe_groups": 10,
+        "multiverse_sum": 5,
+        "multiverse_root": "11f8fb78b114cd289257cf314e5f8ea0fd99d78b75fc08a08d4433f8c21c58d5",
+        "mint_batches": 0,
+        "heap_bytes": 88621056,
+        "goroutines": 2875,
+        "grpc_calls": 14693,
+        "universe_syncs": 0,
+        "universe_proofs": 598297,
+        "container": {
+          "mem_bytes": 160899072,
+          "cpu_pct": 20.75,
+          "restart_count": 0,
+          "anon_bytes": 155975680,
+          "file_bytes": 24797184,
+          "kernel_stack_bytes": 376832,
+          "slab_bytes": 2381968,
+          "current_bytes": 184250368,
+          "mem_peak_bytes": 239067136,
+          "cpu_usec": 4304532489,
+          "cpu_user_usec": 3224620054,
+          "cpu_system_usec": 1079912435
+        },
+        "grpc": {
+          "SendMessage": {
+            "calls": 2207,
+            "total_s": 5.7074493409999985,
+            "mean_ms": 2.586
+          },
+          "ListFederationServers": {
+            "calls": 75,
+            "total_s": 0.034462150999999996,
+            "mean_ms": 0.459
+          },
+          "ListBatches": {
+            "calls": 50,
+            "total_s": 0.06355478,
+            "mean_ms": 1.271
+          },
+          "GetInfo": {
+            "calls": 151,
+            "total_s": 0.4681035960000001,
+            "mean_ms": 3.100
+          },
+          "AssetRoots": {
+            "calls": 308,
+            "total_s": 6.367995182999996,
+            "mean_ms": 20.675
+          },
+          "AddrReceives": {
+            "calls": 7245,
+            "total_s": 43.82526730699997,
+            "mean_ms": 6.049
+          },
+          "ListAssets": {
+            "calls": 125,
+            "total_s": 5.050965023,
+            "mean_ms": 40.408
+          },
+          "MailboxInfo": {
+            "calls": 851,
+            "total_s": 0.2955665290000001,
+            "mean_ms": 0.347
+          },
+          "RemoveMessage": {
+            "calls": 116,
+            "total_s": 0.185589352,
+            "mean_ms": 1.600
+          },
+          "NewAddr": {
+            "calls": 118,
+            "total_s": 3.603266439,
+            "mean_ms": 30.536
+          },
+          "AddFederationServer": {
+            "calls": 25,
+            "total_s": 4157.2085704950005,
+            "mean_ms": 166288.343
+          },
+          "QueryProof": {
+            "calls": 127,
+            "total_s": 3.0809889109999995,
+            "mean_ms": 24.260
+          },
+          "MultiverseRoot": {
+            "calls": 50,
+            "total_s": 0.07151797599999998,
+            "mean_ms": 1.430
+          },
+          "InsertProof": {
+            "calls": 2207,
+            "total_s": 136.04858392199995,
+            "mean_ms": 61.644
+          },
+          "Info": {
+            "calls": 472,
+            "total_s": 0.010119153000000004,
+            "mean_ms": 0.021
+          },
+          "SendAsset": {
+            "calls": 118,
+            "total_s": 24.82213169300001,
+            "mean_ms": 210.357
+          },
+          "UniverseStats": {
+            "calls": 50,
+            "total_s": 0.0014482610000000002,
+            "mean_ms": 0.029
+          },
+          "ListBalances": {
+            "calls": 25,
+            "total_s": 0.267723252,
+            "mean_ms": 10.709
+          }
+        }
+      },
+      "uni-tapd": {
+        "backend": "sqlite",
+        "db_bytes": 10977280,
+        "storage": {
+          "sqlite": {
+            "main": 10924032,
+            "wal": 4210672,
+            "shm": 32768,
+            "backups": 12288
+          }
+        },
+        "proofs_bytes": 4096,
+        "proofs_files": 0,
+        "assets": 0,
+        "groups": 0,
+        "universe_roots": 6,
+        "universe_leaves": 2060,
+        "universe_groups": 6,
+        "multiverse_sum": 5,
+        "multiverse_root": "11f8fb78b114cd289257cf314e5f8ea0fd99d78b75fc08a08d4433f8c21c58d5",
+        "mint_batches": 0,
+        "heap_bytes": 79167488,
+        "goroutines": 108,
+        "grpc_calls": 4376,
+        "universe_syncs": 0,
+        "universe_proofs": 2060,
+        "container": {
+          "mem_bytes": 98123776,
+          "cpu_pct": 0.00,
+          "restart_count": 0,
+          "anon_bytes": 95404032,
+          "file_bytes": 15941632,
+          "kernel_stack_bytes": 344064,
+          "slab_bytes": 981216,
+          "current_bytes": 113225728,
+          "mem_peak_bytes": 234987520,
+          "cpu_usec": 128836989,
+          "cpu_user_usec": 109229491,
+          "cpu_system_usec": 19607497
+        },
+        "grpc": {}
+      },
+      "uni2-tapd": {
+        "backend": "postgres",
+        "db_bytes": 23354391,
+        "storage": {
+          "postgres": {
+            "total": 23354391,
+            "top_tables": {
+              "mssmt_nodes": 8265728,
+              "universe_leaves": 1351680,
+              "genesis_assets": 778240,
+              "asset_group_witnesses": 442368,
+              "universe_events": 385024,
+              "chain_txns": 147456,
+              "universe_roots": 98304,
+              "genesis_points": 90112,
+              "internal_keys": 81920,
+              "asset_groups": 81920
+            }
+          }
+        },
+        "proofs_bytes": 4096,
+        "proofs_files": 0,
+        "assets": 0,
+        "groups": 0,
+        "universe_roots": 6,
+        "universe_leaves": 2060,
+        "universe_groups": 6,
+        "multiverse_sum": 5,
+        "multiverse_root": "11f8fb78b114cd289257cf314e5f8ea0fd99d78b75fc08a08d4433f8c21c58d5",
+        "mint_batches": 0,
+        "heap_bytes": 83468288,
+        "goroutines": 108,
+        "grpc_calls": 6675,
+        "universe_syncs": 0,
+        "universe_proofs": 2060,
+        "container": {
+          "mem_bytes": 92667904,
+          "cpu_pct": 0.00,
+          "restart_count": 0,
+          "anon_bytes": 89415680,
+          "file_bytes": 2244608,
+          "kernel_stack_bytes": 344064,
+          "slab_bytes": 611056,
+          "current_bytes": 93102080,
+          "mem_peak_bytes": 94171136,
+          "cpu_usec": 57223656,
+          "cpu_user_usec": 39773676,
+          "cpu_system_usec": 17449980
+        },
+        "grpc": {}
+      }
+    },
+    "containers": {
+      "bitcoind": {
+        "mem_bytes": 52846592,
+        "cpu_pct": 9.28,
+        "restart_count": 0,
+        "anon_bytes": 45936640,
+        "file_bytes": 7716864,
+        "kernel_stack_bytes": 671744,
+        "slab_bytes": 998368,
+        "current_bytes": 55939072,
+        "mem_peak_bytes": 62119936,
+        "cpu_usec": 970699746,
+        "cpu_user_usec": 541998101,
+        "cpu_system_usec": 428701645
+      },
+      "pg": {
+        "mem_bytes": 231628800,
+        "cpu_pct": 92.75,
+        "restart_count": 0,
+        "anon_bytes": 54362112,
+        "file_bytes": 406577152,
+        "kernel_stack_bytes": 327680,
+        "slab_bytes": 15932488,
+        "current_bytes": 484876288,
+        "mem_peak_bytes": 577650688,
+        "cpu_usec": 33958555709,
+        "cpu_user_usec": 25832793119,
+        "cpu_system_usec": 8125765962
+      },
+      "alice": {
+        "mem_bytes": 79810560,
         "cpu_pct": 0.00,
         "restart_count": 0,
-        "anon_bytes": 27828224,
-        "file_bytes": 2166784,
+        "anon_bytes": 77045760,
+        "file_bytes": 5472256,
+        "kernel_stack_bytes": 360448,
+        "slab_bytes": 691216,
+        "current_bytes": 84656128,
+        "mem_peak_bytes": 310296576,
+        "cpu_usec": 1043946617,
+        "cpu_user_usec": 662660558,
+        "cpu_system_usec": 381286059
+      },
+      "bob": {
+        "mem_bytes": 72822784,
+        "cpu_pct": 0.00,
+        "restart_count": 0,
+        "anon_bytes": 69984256,
+        "file_bytes": 4222976,
+        "kernel_stack_bytes": 376832,
+        "slab_bytes": 654656,
+        "current_bytes": 76386304,
+        "mem_peak_bytes": 296247296,
+        "cpu_usec": 1506925963,
+        "cpu_user_usec": 840516399,
+        "cpu_system_usec": 666409563
+      },
+      "uni": {
+        "mem_bytes": 37900288,
+        "cpu_pct": 0.00,
+        "restart_count": 0,
+        "anon_bytes": 35368960,
+        "file_bytes": 3686400,
+        "kernel_stack_bytes": 393216,
+        "slab_bytes": 632640,
+        "current_bytes": 41254912,
+        "mem_peak_bytes": 297152512,
+        "cpu_usec": 115587735,
+        "cpu_user_usec": 77923764,
+        "cpu_system_usec": 37663971
+      },
+      "uni2": {
+        "mem_bytes": 41598976,
+        "cpu_pct": 0.00,
+        "restart_count": 0,
+        "anon_bytes": 39165952,
+        "file_bytes": 2248704,
+        "kernel_stack_bytes": 376832,
+        "slab_bytes": 625576,
+        "current_bytes": 43524096,
+        "mem_peak_bytes": 296407040,
+        "cpu_usec": 106339043,
+        "cpu_user_usec": 72820135,
+        "cpu_system_usec": 33518908
+      },
+      "alice-tapd": {
+        "mem_bytes": 433238016,
+        "cpu_pct": 102.94,
+        "restart_count": 0,
+        "anon_bytes": 412000256,
+        "file_bytes": 263811072,
+        "kernel_stack_bytes": 393216,
+        "slab_bytes": 17414160,
+        "current_bytes": 694988800,
+        "mem_peak_bytes": 804458496,
+        "cpu_usec": 49405853383,
+        "cpu_user_usec": 45230430894,
+        "cpu_system_usec": 4175425488
+      },
+      "bob-tapd": {
+        "mem_bytes": 160899072,
+        "cpu_pct": 20.75,
+        "restart_count": 0,
+        "anon_bytes": 155975680,
+        "file_bytes": 24797184,
+        "kernel_stack_bytes": 376832,
+        "slab_bytes": 2381968,
+        "current_bytes": 184250368,
+        "mem_peak_bytes": 239067136,
+        "cpu_usec": 4304532489,
+        "cpu_user_usec": 3224620054,
+        "cpu_system_usec": 1079912435
+      },
+      "uni-tapd": {
+        "mem_bytes": 98123776,
+        "cpu_pct": 0.00,
+        "restart_count": 0,
+        "anon_bytes": 95404032,
+        "file_bytes": 15941632,
         "kernel_stack_bytes": 344064,
-        "slab_bytes": 603040,
-        "current_bytes": 31350784,
-        "mem_peak_bytes": 55791616,
-        "cpu_usec": 52736477,
-        "cpu_user_usec": 36536680,
-        "cpu_system_usec": 16199796
+        "slab_bytes": 981216,
+        "current_bytes": 113225728,
+        "mem_peak_bytes": 234987520,
+        "cpu_usec": 128836989,
+        "cpu_user_usec": 109229491,
+        "cpu_system_usec": 19607497
+      },
+      "uni2-tapd": {
+        "mem_bytes": 92667904,
+        "cpu_pct": 0.00,
+        "restart_count": 0,
+        "anon_bytes": 89415680,
+        "file_bytes": 2244608,
+        "kernel_stack_bytes": 344064,
+        "slab_bytes": 611056,
+        "current_bytes": 93102080,
+        "mem_peak_bytes": 94171136,
+        "cpu_usec": 57223656,
+        "cpu_user_usec": 39773676,
+        "cpu_system_usec": 17449980
       }
     }
   },
   "delta": {
     "alice-tapd": {
-      "db_bytes": 2289664,
-      "proofs_bytes": 9283356,
-      "proofs_files": 160,
+      "db_bytes": 1884160,
+      "proofs_bytes": 4566898,
+      "proofs_files": 135,
       "assets": 0,
       "universe_roots": 0,
       "universe_leaves": 0,
-      "grpc_calls": 21342
+      "grpc_calls": 16954
     },
     "bob-tapd": {
-      "db_bytes": -4227072,
-      "proofs_bytes": 582672,
+      "db_bytes": 393216,
+      "proofs_bytes": 608212,
       "proofs_files": 10,
-      "assets": 0,
+      "assets": -2,
       "universe_roots": 0,
       "universe_leaves": 0,
-      "grpc_calls": 424
+      "grpc_calls": 540
     },
     "uni-tapd": {
-      "db_bytes": 122880,
-      "proofs_bytes": 0,
-      "proofs_files": 0,
-      "assets": 0,
-      "universe_roots": 0,
-      "universe_leaves": 0,
-      "grpc_calls": 627
-    },
-    "uni2-tapd": {
-      "db_bytes": 221184,
+      "db_bytes": 131072,
       "proofs_bytes": 0,
       "proofs_files": 0,
       "assets": 0,
@@ -1137,56 +1128,65 @@
       "universe_leaves": 0,
       "grpc_calls": 32
     },
+    "uni2-tapd": {
+      "db_bytes": 229376,
+      "proofs_bytes": 0,
+      "proofs_files": 0,
+      "assets": 0,
+      "universe_roots": 0,
+      "universe_leaves": 0,
+      "grpc_calls": 526
+    },
     "containers": {
       "alice": {
-        "cpu_usec": 13346494,
-        "cpu_user_usec": 7876890,
-        "cpu_system_usec": 5469603
+        "cpu_usec": 8062552,
+        "cpu_user_usec": 5131202,
+        "cpu_system_usec": 2931351
       },
       "alice-tapd": {
-        "cpu_usec": 1578243827,
-        "cpu_user_usec": 1435345665,
-        "cpu_system_usec": 142898163
+        "cpu_usec": 913552333,
+        "cpu_user_usec": 828027102,
+        "cpu_system_usec": 85528230
       },
       "bitcoind": {
-        "cpu_usec": 4920723,
-        "cpu_user_usec": 2864593,
-        "cpu_system_usec": 2056130
+        "cpu_usec": 2735927,
+        "cpu_user_usec": 1572117,
+        "cpu_system_usec": 1163811
       },
       "bob": {
-        "cpu_usec": 8058936,
-        "cpu_user_usec": 4502868,
-        "cpu_system_usec": 3556068
+        "cpu_usec": 4238584,
+        "cpu_user_usec": 2371104,
+        "cpu_system_usec": 1867479
       },
       "bob-tapd": {
-        "cpu_usec": 45539615,
-        "cpu_user_usec": 34801964,
-        "cpu_system_usec": 10737650
+        "cpu_usec": 25367307,
+        "cpu_user_usec": 19253497,
+        "cpu_system_usec": 6112981
       },
       "pg": {
-        "cpu_usec": 156030120,
-        "cpu_user_usec": 119526639,
-        "cpu_system_usec": 36503481
+        "cpu_usec": 130407420,
+        "cpu_user_usec": 102996689,
+        "cpu_system_usec": 27410133
       },
       "uni": {
-        "cpu_usec": 220190,
-        "cpu_user_usec": 136659,
-        "cpu_system_usec": 83532
+        "cpu_usec": 192295,
+        "cpu_user_usec": 127636,
+        "cpu_system_usec": 64660
       },
       "uni-tapd": {
-        "cpu_usec": 31513133,
-        "cpu_user_usec": 29389683,
-        "cpu_system_usec": 2123450
+        "cpu_usec": 1535312,
+        "cpu_user_usec": 1240494,
+        "cpu_system_usec": 294818
       },
       "uni2": {
-        "cpu_usec": 207808,
-        "cpu_user_usec": 132623,
-        "cpu_system_usec": 75186
+        "cpu_usec": 179395,
+        "cpu_user_usec": 128868,
+        "cpu_system_usec": 50528
       },
       "uni2-tapd": {
-        "cpu_usec": 805652,
-        "cpu_user_usec": 533399,
-        "cpu_system_usec": 272253
+        "cpu_usec": 3130224,
+        "cpu_user_usec": 2288787,
+        "cpu_system_usec": 841437
       }
     }
   }
