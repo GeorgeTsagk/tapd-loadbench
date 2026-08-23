@@ -11585,5 +11585,130 @@
         "db_bytes": null
       }
     }
+  },
+  {
+    "epoch": 98,
+    "finished_at": "2026-08-23T02:49:43Z",
+    "duration_s": 1550.74,
+    "versions": {
+      "tapd": "0.8.1-alpha commit=v0.8.1-dirty",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 15.36
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 1120.02
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 409.83
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 225579008,
+          "proofs_bytes": 876587023,
+          "assets": 512,
+          "universe_roots": 10,
+          "universe_leaves": 20652,
+          "multiverse_root": "ce8554581cab49204183696d1361f0abe53303470271842c915c063ed0a64e66"
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 271809559,
+          "proofs_bytes": 63490825,
+          "assets": 24,
+          "universe_roots": 10,
+          "universe_leaves": 1125803,
+          "multiverse_root": "ce8554581cab49204183696d1361f0abe53303470271842c915c063ed0a64e66"
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 14979072,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 6,
+          "universe_leaves": 2860,
+          "multiverse_root": "ce8554581cab49204183696d1361f0abe53303470271842c915c063ed0a64e66"
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 27188247,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 6,
+          "universe_leaves": 2860,
+          "multiverse_root": "ce8554581cab49204183696d1361f0abe53303470271842c915c063ed0a64e66"
+        }
+      },
+      "containers": {
+        "bitcoind": {
+          "mem_bytes": 38166528,
+          "mem_peak_bytes": 62119936
+        },
+        "pg": {
+          "mem_bytes": 195371008,
+          "mem_peak_bytes": 698167296
+        },
+        "alice": {
+          "mem_bytes": 65081344,
+          "mem_peak_bytes": 310296576
+        },
+        "bob": {
+          "mem_bytes": 55177216,
+          "mem_peak_bytes": 296247296
+        },
+        "uni": {
+          "mem_bytes": 34893824,
+          "mem_peak_bytes": 297152512
+        },
+        "uni2": {
+          "mem_bytes": 33173504,
+          "mem_peak_bytes": 296407040
+        },
+        "alice-tapd": {
+          "mem_bytes": 504246272,
+          "mem_peak_bytes": 2146541568
+        },
+        "bob-tapd": {
+          "mem_bytes": 177582080,
+          "mem_peak_bytes": 302620672
+        },
+        "uni-tapd": {
+          "mem_bytes": 52752384,
+          "mem_peak_bytes": 234987520
+        },
+        "uni2-tapd": {
+          "mem_bytes": 39518208,
+          "mem_peak_bytes": 107884544
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 3387392
+      },
+      "bob-tapd": {
+        "db_bytes": 1818624
+      },
+      "uni-tapd": {
+        "db_bytes": 122880
+      },
+      "uni2-tapd": {
+        "db_bytes": 106496
+      },
+      "containers": {
+        "db_bytes": null
+      }
+    }
   }
 ]
