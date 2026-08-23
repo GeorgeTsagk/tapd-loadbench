@@ -1,5 +1,14 @@
 # tapd load benchmark
 
+> **Collection halted 2026-08-23 after 101 epochs.** The network is left running
+> and every volume, profile and record is kept, so the series can be resumed by
+> reinstating the cron entry (see below). Nothing here is wiped.
+>
+> Final state: 101 epochs. `mintV2` and `sync` passed 101/101. `sendV2` passed
+> 89, timed out 9, failed 2. Epoch duration grew 386s to 1645s, and epochs had
+> outgrown the hourly schedule, running at an effective one per 112 minutes.
+
+
 A persistent Taproot Assets regtest network that never gets reset, plus a cron job
 that runs one load epoch against it and appends the numbers to
 [`data/epochs.jsonl`](data/epochs.jsonl).
@@ -158,6 +167,29 @@ backends are declared.
 `bench/epoch.sh` takes a lock and exits quietly if an epoch is already running, so
 overlapping cron fires skip rather than interleave. A failed case still gets
 recorded, because a failed epoch is data, and then the script exits non-zero.
+
+## Resuming
+
+```sh
+crontab -l 2>/dev/null | { cat; echo "23 */3 * * * $PWD/bench/cron.sh"; } | crontab -
+```
+
+Three-hourly rather than hourly: by epoch 100 an epoch took 1645s and the hourly
+schedule was already skipping fires, so the effective rate had degraded to one per
+112 minutes on its own. `bench/deploy.sh` mines a block if the chain tip has gone
+stale, so a gap of any length recovers by itself.
+
+Known wrong in the recorded data, and unfixed at the time collection stopped:
+
+- `assets` saturates at 512. `ListAssets` pages at 512 by default and the harness
+  does not page through, so the figure is correct up to about epoch 30 and pinned
+  after that. Alice actually held 1338 by then. Everything else, including
+  `db_bytes`, proofs and universe leaves, comes from other calls and is unaffected.
+- A case that hits its timeout is recorded as `skipped`, because a Go test that
+  panics on timeout prints neither PASS nor FAIL. Those nine `sendV2` entries ran
+  for 20 minutes; they did not fail to start.
+- Only the case total is recorded, not per-send durations, so the `sendV2` spread
+  of 141s to 1181s cannot be attributed to one slow send or ten.
 
 ## Profiling
 
