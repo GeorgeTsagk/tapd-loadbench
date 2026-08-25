@@ -9,6 +9,14 @@ bench/creds/
 bench/bin/loadtest
 
 # Per-epoch logs are large and local. data/epochs.jsonl is the record that
-# gets committed.
+# gets committed. The archive is the same thing under another name, kept after
+# the v0.8.1 series was frozen, and is just as local.
 logs/
+logs-archive-*/
+
+# Second lock file, the queue slot that keeps at most one epoch waiting.
+.bench.lock.wait
+
+# Byte-compiled modules from importing symbolize into the bottleneck pass.
+bench/__pycache__/
 bench/bin/tapd-symbols

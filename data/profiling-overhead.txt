@@ -1,0 +1,40 @@
+Profiling overhead measurement, 2026-08-25T15:01:31Z
+tapd 9cbf40a6, alice-tapd, 120 iterations x 3 read RPCs per rep.
+Primary metric is the daemon's own cgroup CPU delta, so client process
+spawn cost is excluded. Conditions run off, on, off so drift from
+accumulating state is visible rather than being charged to profiling.
+
+workload: 120 iterations x 3 RPCs, 3 reps per condition, node alice-tapd
+
+--- condition: profiling off (block=0 mutex=0) ---
+off-first      rep 1  daemon_cpu   14.097s  wall  11.126s
+off-first      rep 2  daemon_cpu   14.022s  wall  11.130s
+off-first      rep 3  daemon_cpu   14.010s  wall  11.110s
+
+--- condition: profiling on (block=100000ns mutex=1/100) ---
+on             rep 1  daemon_cpu   14.038s  wall  11.130s
+on             rep 2  daemon_cpu   14.059s  wall  11.130s
+on             rep 3  daemon_cpu   14.098s  wall  11.177s
+
+--- condition: profiling off again, to expose drift ---
+off-second     rep 1  daemon_cpu   13.917s  wall  11.108s
+off-second     rep 2  daemon_cpu   14.013s  wall  11.117s
+off-second     rep 3  daemon_cpu   13.917s  wall  11.118s
+
+--- condition: on, plus an active CPU profile for the whole window ---
+on+cpuprof     rep 1  daemon_cpu   14.112s  wall  11.169s
+on+cpuprof     rep 2  daemon_cpu   14.117s  wall  11.161s
+on+cpuprof     rep 3  daemon_cpu   14.113s  wall  11.188s
+
+Restoring configured rates.
+
+condition      cpu_mean  wall_mean
+off-first       14.043s    11.122s
+off-second      13.949s    11.114s
+on              14.065s    11.146s
+on+cpuprof      14.114s    11.173s
+
+Reading: control drift between the two off conditions is larger than the
+difference either profiled condition shows against them, so the cost of
+block plus mutex sampling, and of an active CPU profile on top, sits at
+or below the measurement floor here. Under 1% on daemon CPU and wall.

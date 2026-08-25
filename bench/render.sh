@@ -47,6 +47,10 @@ jq -s '[ .[] | {
 if command -v go >/dev/null 2>&1 && [[ -f "$ROOT/bench/bin/tapd-symbols" ]]; then
   python3 "$ROOT/bench/symbolize.py" "$ROOT" "$ROOT/bench/bin/tapd-symbols" \
     "$OUT/profiles.json" || echo "symbolize failed (continuing)"
+  # The same profiles, reduced to one verdict per operation. This is the view
+  # meant to be read first; profiles.json is the drill-down behind it.
+  python3 "$ROOT/bench/bottleneck.py" "$ROOT" "$ROOT/bench/bin/tapd-symbols" \
+    "$OUT/bottlenecks.json" || echo "bottleneck pass failed (continuing)"
 else
   echo "skipping profile symbolization (no go toolchain or no symbol binary)"
 fi

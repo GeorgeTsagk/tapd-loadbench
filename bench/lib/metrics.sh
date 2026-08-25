@@ -247,11 +247,21 @@ snapshot() {
     out=$(jq -cn --argjson acc "$out" --arg k "$n" --argjson v "$(tapd_metrics "$n")" \
       '$acc + {($k): $v}')
   done
+  # WAL checkpoint state for the sqlite nodes. Reported separately from the
+  # tapd block because it has no postgres counterpart, and because reported db
+  # size alone is blind to it: a stalled checkpoint leaves the main file
+  # untouched for days while the WAL grows without bound.
+  local wal="{}"
+  for n in $TAPD_NODES; do
+    [[ "${TAPD_DB[$n]}" == sqlite ]] || continue
+    wal=$(jq -cn --argjson acc "$wal" --arg k "$n" \
+      --argjson v "$(sqlite_wal_state "$n")" '$acc + {($k): $v}')
+  done
   local height
   height=$(btc getblockcount 2>/dev/null || echo 0)
   jq -cn --argjson nodes "$out" --argjson height "${height:-0}" \
-    --argjson containers "$CONTAINER_STATS" \
-    '{block_height: $height, tapd: $nodes, containers: $containers}'
+    --argjson containers "$CONTAINER_STATS" --argjson wal "$wal" \
+    '{block_height: $height, tapd: $nodes, containers: $containers, wal: $wal}'
 }
 
 # Nodes whose tapd exposes pprof, and the port it listens on inside the
@@ -265,15 +275,119 @@ PPROF_PORT=9091
 # go tool pprof -base of a pre/post pair around one case says what that case did,
 # and a diff across epochs says what is accumulating. Text output cannot do
 # either.
+# heap and goroutine are levels, read as-is. allocs, block and mutex are
+# cumulative since process start, so a pre/post pair brackets exactly one
+# operation. block and mutex are only populated because the patched build
+# enables their sample rates, which the stock binary leaves at zero.
+PROFILE_KINDS="heap goroutine allocs block mutex"
+
 capture_profiles() {
   local node=$1 dir=$2 label=$3
   mkdir -p "$dir"
   local p
-  for p in heap goroutine allocs; do
+  for p in $PROFILE_KINDS; do
     docker exec "$node" sh -c \
       "curl -s -o /tmp/$p.pb.gz 'localhost:$PPROF_PORT/debug/pprof/$p'" 2>/dev/null || continue
     docker cp "$node:/tmp/$p.pb.gz" "$dir/$node.$label.$p.pb.gz" >/dev/null 2>&1 || true
   done
+}
+
+# Open a CPU profile window on every profiled node. The stock ?seconds=N
+# handler needs the duration up front, which no operation can supply, so the
+# patched build exposes an explicit bracket instead. The seconds argument is
+# only a watchdog: if this script dies before the stop call, the daemon stops
+# profiling itself rather than sampling forever.
+cpu_profile_start() {
+  local watchdog=$1 n
+  for n in $PPROF_NODES; do
+    docker exec "$n" sh -c \
+      "curl -s -o /dev/null 'localhost:$PPROF_PORT/debug/cpu/start?seconds=$watchdog'" \
+      2>/dev/null || true
+  done
+}
+
+# Close the window and keep the profile. Named by operation, so the CPU cost of
+# one case is a file rather than something to be inferred from an epoch total.
+cpu_profile_stop() {
+  local dir=$1 label=$2 n
+  mkdir -p "$dir"
+  for n in $PPROF_NODES; do
+    docker exec "$n" sh -c \
+      "curl -s -o /tmp/cpu.pb.gz 'localhost:$PPROF_PORT/debug/cpu/stop'" 2>/dev/null || continue
+    docker cp "$n:/tmp/cpu.pb.gz" "$dir/$n.$label.cpu.pb.gz" >/dev/null 2>&1 || true
+  done
+}
+
+# sqlite WAL checkpoint state, read straight out of the wal-index header. This
+# is the one metric that would have caught the 3.7 GB never-checkpointed WAL on
+# the v0.8.1 minter, where the daemon looked healthy and the reported db size
+# was three days stale.
+#
+# Layout: WalIndexHdr is 48 bytes and stored twice, so WalCkptInfo starts at
+# byte 96 with nBackfill, then aReadMark[5]. mxFrame sits at byte 16 of the
+# first header copy. Reading the file costs the daemon nothing.
+sqlite_wal_state() {
+  local node=$1
+  local base=/root/.tapd/data/regtest/tapd.db
+  local words
+  words=$(docker exec "$node" sh -c \
+    "[ -f $base-shm ] || exit 1; dd if=$base-shm bs=132 count=1 2>/dev/null | od -An -tu4 -v" \
+    2>/dev/null | tr -s ' \n' ' ') || { printf 'null'; return; }
+  local sizes
+  sizes=$(docker exec "$node" sh -c \
+    "stat -c %s $base 2>/dev/null || echo 0; stat -c %s $base-wal 2>/dev/null || echo 0; stat -c %s $base-shm 2>/dev/null || echo 0" \
+    2>/dev/null | tr '\n' ' ')
+  awk -v words="$words" -v sizes="$sizes" 'BEGIN {
+    n = split(words, w, " ")
+    split(sizes, z, " ")
+    # od prints one leading empty field after the tr squeeze, so word i of the
+    # file is w[i+1]. mxFrame is word 4, nBackfill word 24.
+    mx = w[5] + 0; nb = w[25] + 0
+    printf "{\"mx_frame\":%d,\"n_backfill\":%d,\"unbackfilled\":%d,", mx, nb, mx - nb
+    printf "\"db_bytes\":%d,\"wal_bytes\":%d,\"shm_bytes\":%d,", z[1] + 0, z[2] + 0, z[3] + 0
+    printf "\"read_marks\":[%d,%d,%d,%d,%d]}", w[26]+0, w[27]+0, w[28]+0, w[29]+0, w[30]+0
+  }'
+}
+
+# Cumulative CPU microseconds for the containers a case can load. Differencing
+# this across a case gives the exact CPU seconds the case cost, which is the
+# denominator the CPU profile gets attributed against. Without it a profile
+# says where time went in relative terms but never how much there was.
+case_cpu() {
+  local out="{}" n v
+  for n in $PPROF_NODES pg; do
+    v=$(docker exec "$n" cat /sys/fs/cgroup/cpu.stat 2>/dev/null \
+      | awk '/^usage_usec/{print $2}')
+    out=$(jq -cn --argjson acc "$out" --arg k "$n" --argjson v "${v:-0}" \
+      '$acc + {($k): $v}')
+  done
+  printf '%s' "$out"
+}
+
+# Reset the postgres statement counters so the next window is attributable.
+# pg_stat_statements is cluster-wide, and only the tapd databases use this
+# instance, so a global reset is the whole scope.
+pg_stat_reset() {
+  docker exec pg psql -U lightning -d postgres -q -c \
+    "SELECT pg_stat_statements_reset();" >/dev/null 2>&1 || true
+}
+
+# The queries that dominated the window just closed, by total time. This is the
+# direct answer to which statement an operation is waiting on, which previously
+# had to be reconstructed by hand from pg_stat_activity samples.
+pg_stat_top() {
+  local limit=${1:-15}
+  docker exec pg psql -U lightning -d postgres -t -A -F$'\t' -c \
+    "SELECT d.datname, s.calls, round(s.total_exec_time::numeric, 1),
+            round(s.mean_exec_time::numeric, 3), s.rows,
+            left(regexp_replace(s.query, '\s+', ' ', 'g'), 160)
+     FROM pg_stat_statements s JOIN pg_database d ON d.oid = s.dbid
+     WHERE d.datname LIKE '%tapd'
+     ORDER BY s.total_exec_time DESC LIMIT $limit;" 2>/dev/null \
+  | jq -Rsc 'split("\n") | map(select(length > 0) | split("\t")) |
+      map({db: .[0], calls: (.[1]|tonumber), total_ms: (.[2]|tonumber),
+           mean_ms: (.[3]|tonumber), rows: (.[4]|tonumber), query: .[5]})' \
+  || printf '[]'
 }
 
 # Capture on every profiled node at once.

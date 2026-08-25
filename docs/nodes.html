@@ -89,6 +89,27 @@
     font-size: .6875rem; color: var(--ink-3); white-space: pre-wrap;
     padding-top: 0; padding-bottom: .5rem;
   }
+
+  /* Verdict pills. A named bottleneck class is a finding, so it reads as one;
+     latency-bound is the benign case where no subsystem is the culprit. */
+  .verdict { font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .6875rem; font-weight: 600; letter-spacing: .04em;
+    padding: .125rem .4375rem; border-radius: 3px;
+    background: var(--sunken); color: var(--ink-2); white-space: nowrap; }
+  .verdict.cpu-bound, .verdict.db-bound, .verdict.lock-bound,
+  .verdict.blocking-bound { background: var(--crit-bg); color: var(--crit); }
+  .verdict.latency-bound { background: var(--good-bg); color: var(--good); }
+  #bn-tbl tbody tr { cursor: pointer; }
+  #bn-tbl tbody tr.open { background: var(--sunken); }
+  tr.bn-detail > td { padding: 0 .625rem .75rem; }
+  tr.bn-detail .cols { display: grid; gap: 1.125rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+  tr.bn-detail h4 { margin: 0 0 .25rem; font-size: .6875rem;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  tr.bn-detail ol { margin: 0; padding-left: 1.125rem; font-size: .75rem;
+    color: var(--ink-2); }
+  tr.bn-detail code { font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .6875rem; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -100,6 +121,22 @@
       recent epoch. This page is deliberately one point in time: the series page
       carries the history.</p>
   </header>
+
+  <section class="card" id="bn-card" hidden>
+    <p class="eyebrow">Bottleneck</p>
+    <h2>What held each operation up</h2>
+    <p class="note">A time budget per operation, from four independent sources:
+      the operation's own duration, the daemon's cgroup CPU delta across
+      exactly that operation, goroutine blocking on real dependencies, and
+      summed statement time. Whichever dominates names the class. Rows are
+      clickable for the contributing functions and queries.</p>
+    <p class="note" id="bn-caveat"></p>
+    <div class="scroll"><table id="bn-tbl"><thead><tr>
+      <th>operation</th><th>node</th><th>verdict</th>
+      <th class="num">wall</th><th class="num">cpu</th><th class="num">block</th>
+      <th class="num">mutex</th><th class="num">db</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
 
   <section class="controls">
     <label for="node">Node</label>
@@ -540,12 +577,82 @@ document.getElementById('filter').addEventListener('input', () => {
 });
 wireSorting();
 
+function fmtS(v) {
+  return (v === null || v === undefined) ? '\u2014' : v.toFixed(2) + 's';
+}
+
+function bnDetail(op) {
+  const list = (title, rows, fmt) => rows && rows.length
+    ? '<div><h4>' + title + '</h4><ol>' +
+      rows.slice(0, 6).map(fmt).join('') + '</ol></div>'
+    : '';
+  return '<div class="cols">' +
+    list('CPU by function', op.top.cpu,
+      r => '<li><code>' + r.fn + '</code> &middot; ' +
+           r.self_s.toFixed(2) + 's</li>') +
+    list('CPU by package', op.top.cpu_packages,
+      r => '<li><code>' + r.pkg + '</code> &middot; ' +
+           r.self_s.toFixed(2) + 's</li>') +
+    list('Blocked on', op.top.block,
+      r => '<li><code>' + r.fn + '</code> &middot; ' +
+           r.self_s.toFixed(2) + 's</li>') +
+    list('Slowest queries', op.top.db,
+      r => '<li>' + r.total_ms.toFixed(0) + 'ms over ' + r.calls +
+           ' calls &middot; <code>' +
+           r.query.replace(/^-- name: /, '') + '</code></li>') +
+    '</div>';
+}
+
+function renderBottlenecks(b) {
+  if (!b || !b.operations || !b.operations.length) return;
+  document.getElementById('bn-card').hidden = false;
+  // Raw block totals are dominated by idle parked goroutines, so the figure in
+  // the table is filtered to real dependencies. Say so with both numbers, or
+  // the filtered value reads as implausibly small next to the uptime.
+  const raw = b.operations.reduce((a, o) => a + (o.budget.block_raw_s || 0), 0);
+  const filt = b.operations.reduce((a, o) => a + (o.budget.block_s || 0), 0);
+  document.getElementById('bn-caveat').textContent =
+    'Block time is filtered to the sql pool and driver, sqlite locks, '
+    + 'semaphore and waitgroup waits, and real IO. Unfiltered it totals '
+    + raw.toFixed(0) + 's of goroutine-seconds across these operations against '
+    + filt.toFixed(2) + 's filtered, because every parked goroutine keeps '
+    + 'accruing delay for as long as it waits. Blocking is counted in '
+    + 'goroutine-seconds, so it can exceed wall clock when work is concurrent.';
+
+  const tb = document.querySelector('#bn-tbl tbody');
+  tb.innerHTML = '';
+  b.operations.forEach(op => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + op.case + '</td><td>' + op.node + '</td>'
+      + '<td><span class="verdict ' + op.verdict + '">' + op.verdict
+      + '</span></td>'
+      + '<td class="num">' + fmtS(op.budget.wall_s) + '</td>'
+      + '<td class="num">' + fmtS(op.budget.cpu_s) + '</td>'
+      + '<td class="num">' + fmtS(op.budget.block_s) + '</td>'
+      + '<td class="num">' + fmtS(op.budget.mutex_s) + '</td>'
+      + '<td class="num">' + fmtS(op.budget.db_s) + '</td>';
+    const det = document.createElement('tr');
+    det.className = 'bn-detail';
+    det.hidden = true;
+    det.innerHTML = '<td colspan="8"><p class="note">' + op.why + '</p>'
+      + bnDetail(op) + '</td>';
+    tr.addEventListener('click', () => {
+      det.hidden = !det.hidden;
+      tr.classList.toggle('open', !det.hidden);
+    });
+    tb.appendChild(tr);
+    tb.appendChild(det);
+  });
+}
+
 Promise.all([
   fetch('latest.json').then(r => r.json()),
   fetch('profiles.json').then(r => r.ok ? r.json() : null).catch(() => null),
-]).then(([d, p]) => {
+  fetch('bottlenecks.json').then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([d, p, b]) => {
   LATEST = d;
   PROFILES = p;
+  renderBottlenecks(b);
   renderAll();
 }).catch(err => {
   document.getElementById('ctx').textContent = 'could not load latest.json: ' + err;

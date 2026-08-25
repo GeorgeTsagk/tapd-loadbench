@@ -39,6 +39,15 @@ for db in $PG_DATABASES; do
   fi
 done
 
+# pg_stat_statements is preloaded by the server start options, but the view
+# still has to be created once per database that queries it. Attributing an
+# operation to the statement it waits on depends on this.
+for db in postgres $PG_DATABASES; do
+  docker exec pg psql -U lightning -d "$db" -q -c \
+    "CREATE EXTENSION IF NOT EXISTS pg_stat_statements" >/dev/null 2>&1 || \
+    log "warning: could not create pg_stat_statements in $db"
+done
+
 log "waiting for bitcoind"
 for _ in $(seq 1 60); do btc getblockchaininfo >/dev/null 2>&1 && break; sleep 1; done
 btc getblockchaininfo >/dev/null || die "bitcoind never came up"

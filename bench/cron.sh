@@ -4,12 +4,15 @@
 # schedule with no one watching.
 #
 # Install with:
-#   crontab -l 2>/dev/null | { cat; echo "23 * * * * $PWD/bench/cron.sh"; } | crontab -
+#   crontab -l 2>/dev/null | { cat; echo "3,33 * * * * $PWD/bench/cron.sh"; } | crontab -
 #
-# Hourly. Epoch duration grows with accumulated state, so eventually an epoch
-# will not fit in the interval; epoch.sh holds a lock and the next fire skips
-# rather than overlapping, so the effective rate drops instead of corrupting a
-# run. Watch for "another epoch is running, skipping" in the logs.
+# Every 30 minutes. Epoch duration grows with accumulated state, so eventually
+# an epoch will not fit in the interval. When that happens the next firing
+# waits for the running epoch and then takes its turn, rather than dropping the
+# slot, so no interval is silently lost. Only one epoch ever waits: a third
+# firing exits immediately, which stops a long hang from queueing one run per
+# tick and then executing them all back to back. Watch for "waiting for it to
+# finish" and "already queued" in the logs.
 set -uo pipefail
 
 # cron gives a minimal environment. Everything this script shells out to has to

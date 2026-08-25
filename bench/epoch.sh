@@ -28,15 +28,37 @@ while [[ $# -gt 0 ]]; do
 done
 
 DATA="$REPO_ROOT/data/epochs.jsonl"
+# CPU profile watchdog, in seconds. Only a backstop for this script dying
+# mid-case: the case itself is already bounded by CASE_TIMEOUT.
+WATCHDOG_S=$(awk -v t="$CASE_TIMEOUT" 'BEGIN{
+  if (t ~ /m$/) { sub(/m$/, "", t); print t * 60 + 120 }
+  else if (t ~ /h$/) { sub(/h$/, "", t); print t * 3600 + 120 }
+  else { sub(/s$/, "", t); print t + 120 }
+}')
 LOCK="$REPO_ROOT/.bench.lock"
 LOADTEST="$HERE/bin/loadtest"
 [[ -x "$LOADTEST" ]] || die "loadtest binary missing at $LOADTEST (see bench/build.sh)"
 
-# Cron can fire while a previous epoch is still running. Skip rather than
-# queue: two concurrent epochs would interleave their state changes and both
-# records would be meaningless.
+# Cron can fire while a previous epoch is still running. Two epochs must never
+# overlap, since they would interleave their state changes and both records
+# would be meaningless. Rather than drop the slot, wait for the running epoch
+# and then take our turn.
+#
+# Two locks, so at most one epoch ever waits. The outer lock is the queue slot:
+# if another firing already holds it, a run is already queued behind the live
+# one and this firing has nothing to add, so it exits. Without that guard a
+# case that hangs for hours would accumulate one waiter per cron tick and then
+# run them all back to back.
+exec 8>"$LOCK.wait"
+flock -n 8 || { echo "an epoch is already queued, skipping this slot"; exit 0; }
 exec 9>"$LOCK"
-flock -n 9 || { echo "another epoch is running, skipping"; exit 0; }
+if ! flock -n 9; then
+  echo "an epoch is running, waiting for it to finish"
+  flock 9
+fi
+# Hand the queue slot back now that this epoch owns the run lock, so the next
+# cron firing can queue behind us.
+exec 8>&-
 
 mkdir -p "$(dirname "$DATA")"
 touch "$DATA"
@@ -94,6 +116,14 @@ for case_name in $CASES; do
   # taken after the last case, which attributes to nothing.
   capture_all "$RUNDIR/pprof" "pre-$case_name"
 
+  # Open the exact windows this case will be attributed against: a CPU profile
+  # bracketed to the case rather than a guessed fixed duration, the postgres
+  # statement counters reset so the top queries belong to this case alone, and
+  # the cgroup CPU counters so the profile has a denominator.
+  pg_stat_reset
+  cpu_profile_start "$WATCHDOG_S"
+  cpu0=$(case_cpu)
+
   c0=$(date +%s.%N)
   status=pass
   # The binary insists on finding loadtest.conf in its working directory.
@@ -104,19 +134,34 @@ for case_name in $CASES; do
   c1=$(date +%s.%N)
   dur=$(awk -v a="$c0" -v b="$c1" 'BEGIN{printf "%.2f", b-a}')
 
+  cpu1=$(case_cpu)
+  cpu_profile_stop "$RUNDIR/pprof" "$case_name"
+  pg_stat_top 15 > "$RUNDIR/pgstat-$case_name.json"
+
   capture_all "$RUNDIR/pprof" "post-$case_name"
+
+  CASE_CPU=$(jq -cn --argjson a "$cpu0" --argjson b "$cpu1" \
+    'reduce ($b | keys[]) as $k ({}; . + {($k): (($b[$k] // 0) - ($a[$k] // 0))})')
 
   # A case that gets skipped (no matching -test.run) reports success but does
   # no work, which would silently poison the series. Detect it.
   if ! grep -q -- "--- PASS: TestPerformance/$case_name\|--- FAIL: TestPerformance/$case_name" \
       "$RUNDIR/$case_name.log"; then
-    status=skipped
+    # A case killed by -test.timeout panics, so it prints neither result line.
+    # That is a timeout, not a skip, and conflating the two hid three real
+    # sendV2 failures in the v0.8.1 series.
+    if grep -q "test timed out after\|panic: test timed out" \
+        "$RUNDIR/$case_name.log"; then
+      status=timeout
+    else
+      status=skipped
+    fi
   fi
 
   log "  $case_name: $status in ${dur}s"
   CASE_RESULTS=$(jq -cn --argjson acc "$CASE_RESULTS" --arg n "$case_name" \
-    --arg s "$status" --argjson d "$dur" \
-    '$acc + [{name: $n, status: $s, duration_s: $d}]')
+    --arg s "$status" --argjson d "$dur" --argjson cpu "$CASE_CPU" \
+    '$acc + [{name: $n, status: $s, duration_s: $d, cpu_usec: $cpu}]')
 done
 
 T1=$(date +%s.%N)

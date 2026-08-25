@@ -1,0 +1,26 @@
+sqlite WAL checkpoint stall on the v0.8.1 minter, captured 2026-08-25T14:31:24Z
+tapd v0.8.1, ~7 days uptime, 101 epochs. Kept because the finding is
+not yet filed upstream and the wipe destroys the live evidence.
+
+== wal-index state per sqlite node ==
+alice-tapd {"mx_frame":1026322,"n_backfill":861,"unbackfilled":1025461,"db_bytes":152064000,"wal_bytes":4228446672,"shm_bytes":8224768,"read_marks":[0,375927,1026322,1026310,861]}
+uni-tapd {"mx_frame":0,"n_backfill":0,"unbackfilled":0,"db_bytes":15495168,"wal_bytes":0,"shm_bytes":32768,"read_marks":[0,4294967295,4294967295,4294967295,4294967295]}
+
+== on-disk files, alice-tapd ==
+-rw-r--r--    1 root     root     152064000 Aug 21 18:32 /root/.tapd/data/regtest/tapd.db
+-rw-r--r--    1 root     root       8224768 Aug 25 14:31 /root/.tapd/data/regtest/tapd.db-shm
+-rw-r--r--    1 root     root     4228446672 Aug 25 14:29 /root/.tapd/data/regtest/tapd.db-wal
+-rw-r--r--    1 root     root         12288 Aug 18 14:01 /root/.tapd/data/regtest/tapd.db.1787061694645254647.backup
+
+== POSIX locks held on the -shm by the tapd process ==
+byte 120=WRITE 121=CKPT 122=RECOVER 123..127=READ_LOCK(0..4)
+pid=25320 shm_inode=26625069
+89: POSIX  ADVISORY  READ 25320 fc:01:26625069 127 128
+131: POSIX  ADVISORY  READ 25320 fc:01:26625069 124 125
+
+Reading: nBackfill has not advanced past 861 of ~1.03M frames because a
+reader holds READ_LOCK(4) with aReadMark[4]=861, so a passive checkpoint
+can never copy past it. The main db file has not been written since
+2026-08-21 while the WAL grew to 4.2 GB. Measured cost is not read
+latency, which is unchanged, but 1.8s of wal-index recovery on every
+process start plus unbounded disk.
