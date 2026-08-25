@@ -134,6 +134,8 @@
   code { font-family: "IBM Plex Mono", monospace; font-size: .95em;
          background: var(--sunken); padding: .05em .3em; border-radius: 4px; }
 
+  .explained { text-decoration: underline dotted var(--ink-3);
+    text-underline-offset: 3px; cursor: help; }
   .legend { display: flex; flex-wrap: wrap; gap: .9rem; margin: .75rem 0 .1rem; }
   .legend span { display: inline-flex; align-items: center; gap: .4rem;
                  font-size: .8125rem; color: var(--ink-2); }
@@ -332,11 +334,29 @@ const ROLES = [
   { key: 'bob-tapd',   label: 'receiver', short: 'bob',   color: 'var(--series-2)', name: 'bob-tapd, receiver (postgres)' },
 ];
 const NODES = [...ROLES, ...UNIVERSE];
+// What each timed case actually does, so the seconds on the chart mean
+// something without going and reading the load suite. Taken from the case
+// bodies and the epoch config, not from the case names: the numbers here are
+// MINT_BATCH_SIZE, MINT_TOTAL_GROUPS, SEND_NUM_SENDS and SYNC_NUM_CLIENTS.
 const CASES = [
-  { key: 'mintV2', color: 'var(--series-1)' },
-  { key: 'sendV2', color: 'var(--series-2)' },
-  { key: 'sync',   color: 'var(--series-3)' },
+  { key: 'mintV2', color: 'var(--series-1)',
+    what: 'Time to mint one batch of 25 assets into a randomly chosen existing '
+        + 'group, waiting for the batch to finalize on chain. Tops the minter '
+        + 'back up to 5 groups first, and on the very first epoch only creates '
+        + 'those 5 groups.' },
+  { key: 'sendV2', color: 'var(--series-2)',
+    what: 'Time for 10 sends of 1 asset, run one after another, not in '
+        + 'parallel. Direction is drawn at random each time, and each send '
+        + 'waits for the receiver to report the transfer confirmed and then '
+        + 'completed, so chain confirmation and proof courier delivery are '
+        + 'both inside the number.' },
+  { key: 'sync',   color: 'var(--series-3)',
+    what: 'Time for 8 fresh universe clients to each full-sync the minter\'s '
+        + 'universe. All 8 start at once and the clock runs until the last '
+        + 'one finishes, so this is throughput under concurrent load rather '
+        + 'than the cost of a single sync.' },
 ];
+const CASE_WHAT = Object.fromEntries(CASES.map(c => [c.key, c.what]));
 
 // One y-scale per chart. Two measures of different magnitude get two charts,
 // never a second axis.
@@ -454,6 +474,10 @@ function lineChart(host, tip, legendHost, series, fmt) {
   for (const s of drawn) {
     const sp = document.createElement('span');
     sp.innerHTML = `<span class="swatch" style="background:${s.color}"></span>${s.name}`;
+    if (s.what) {
+      sp.title = s.what;
+      sp.classList.add('explained');
+    }
     legendHost.append(sp);
   }
 }
@@ -555,7 +579,7 @@ function render(data) {
   }
 
   const dur = CASES.map(c => ({
-    name: c.key, label: c.key, color: c.color,
+    name: c.key, label: c.key, color: c.color, what: c.what,
     points: data.flatMap(e => {
       const f = e.cases.find(x => x.name === c.key);
       return f && f.status === 'pass' ? [[e.epoch, f.duration_s]] : [];
@@ -603,7 +627,8 @@ function render(data) {
     document.getElementById('lg-memb'), memSeries('bob-tapd'), fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
 
-  const head = ['epoch', 'finished (UTC)', 'total', ...CASES.map(c => c.key),
+  const head = ['epoch', 'finished (UTC)', 'total',
+    ...CASES.map(c => ({ text: c.key, title: c.what })),
     ...NODES.map(n => n.short + ' db'),
     ...ROLES.map(n => n.short + ' assets'),
     ...UNIVERSE.map(n => n.short + ' leaves')];
@@ -625,7 +650,9 @@ function render(data) {
       '</tr>';
   });
   document.getElementById('table').innerHTML =
-    `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>` +
+    `<table><thead><tr>${head.map(h => h.title
+        ? `<th class="explained" title="${h.title}">${h.text}</th>`
+        : `<th>${h}</th>`).join('')}</tr></thead>` +
     `<tbody>${rows.join('')}</tbody></table>`;
 
   document.getElementById('footer').innerHTML = window.__EPOCHS__

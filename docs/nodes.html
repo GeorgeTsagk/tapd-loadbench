@@ -92,6 +92,7 @@
 
   /* Verdict pills. A named bottleneck class is a finding, so it reads as one;
      latency-bound is the benign case where no subsystem is the culprit. */
+  #op-what { flex-basis: 100%; margin: .25rem 0 0; }
   .verdict { font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: .6875rem; font-weight: 600; letter-spacing: .04em;
     padding: .125rem .4375rem; border-radius: 3px;
@@ -170,6 +171,7 @@
     </select>
     <input id="filter" type="search" placeholder="filter by name..." autocomplete="off">
     <span class="ctx" id="ctx"></span>
+    <p class="note" id="op-what"></p>
   </section>
 
   <section class="card">
@@ -354,6 +356,16 @@ function renderProfile() {
   const opLabel = document.getElementById('op').selectedOptions[0].textContent;
   document.getElementById('prof-h').textContent =
     node + ' \u2014 ' + kind + ' \u2014 ' + opLabel;
+
+  // Say what the selected operation is, in place. A select option cannot carry
+  // a tooltip that browsers actually render, so this states it outright.
+  document.getElementById('op-what').textContent =
+    CASE_WHAT[op] || (op === 'epoch'
+      ? 'The whole epoch: every case plus the snapshots taken around them.'
+      : op === 'growth'
+      ? 'Difference between this epoch and the first epoch captured, so what '
+        + 'has accumulated rather than what one run did.'
+      : '');
 
   const show = (msg) => {
     tbody.textContent = '';
@@ -577,6 +589,22 @@ document.getElementById('filter').addEventListener('input', () => {
 });
 wireSorting();
 
+const CASE_WHAT = {
+  mintV2: 'Time to mint one batch of 25 assets into a randomly chosen existing '
+        + 'group, waiting for the batch to finalize on chain. Tops the minter '
+        + 'back up to 5 groups first, and on the very first epoch only creates '
+        + 'those 5 groups.',
+  sendV2: 'Time for 10 sends of 1 asset, run one after another, not in '
+        + 'parallel. Direction is drawn at random each time, and each send '
+        + 'waits for the receiver to report the transfer confirmed and then '
+        + 'completed, so chain confirmation and proof courier delivery are '
+        + 'both inside the number.',
+  sync:   'Time for 8 fresh universe clients to each full-sync the minter\'s '
+        + 'universe. All 8 start at once and the clock runs until the last one '
+        + 'finishes, so this is throughput under concurrent load rather than '
+        + 'the cost of a single sync.',
+};
+
 function fmtS(v) {
   return (v === null || v === undefined) ? '\u2014' : v.toFixed(2) + 's';
 }
@@ -623,7 +651,11 @@ function renderBottlenecks(b) {
   tb.innerHTML = '';
   b.operations.forEach(op => {
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + op.case + '</td><td>' + op.node + '</td>'
+    const what = CASE_WHAT[op.case];
+    const caseCell = what
+      ? '<td class="explained" title="' + what + '">' + op.case + '</td>'
+      : '<td>' + op.case + '</td>';
+    tr.innerHTML = caseCell + '<td>' + op.node + '</td>'
       + '<td><span class="verdict ' + op.verdict + '">' + op.verdict
       + '</span></td>'
       + '<td class="num">' + fmtS(op.budget.wall_s) + '</td>'
