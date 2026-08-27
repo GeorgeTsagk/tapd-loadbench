@@ -171,6 +171,26 @@ FINISHED=$(date -u +%FT%TZ)
 log "collecting after snapshot"
 AFTER=$(snapshot)
 
+# Delta sync, read out of the daemon logs for this epoch's window. Nothing the
+# harness or the load suite runs touches the cursor path: the manual
+# SyncUniverse RPC uses the enumeration syncer, and only the background
+# federation envoy takes the delta route. So the headline feature of the build
+# under test is observed here or not at all.
+DELTA_SYNC="{}"
+for n in $TAPD_NODES; do
+  DELTA_SYNC=$(jq -cn --argjson acc "$DELTA_SYNC" --arg k "$n" \
+    --argjson v "$(delta_sync_stats "$n" "$STARTED")" '$acc + {($k): $v}')
+done
+log "delta sync: $(printf '%s' "$DELTA_SYNC" | jq -c 'map_values({rounds, fallbacks})')"
+
+# Cold start cost, taken last so the restart cannot affect anything measured
+# above. Every epoch therefore begins with a cold minter, which is uniform and
+# so comparable.
+log "measuring cold start of $MINTER_TAPD"
+STARTUP=$(jq -cn --argjson v "$(measure_startup "$MINTER_TAPD")" \
+  --arg k "$MINTER_TAPD" '{($k): $v}')
+log "startup: $(printf '%s' "$STARTUP" | jq -c .)"
+
 # One more at the epoch boundary, which is what cross-epoch diffs compare.
 capture_all "$RUNDIR/pprof" "epoch"
 log "captured profiles: $(ls "$RUNDIR/pprof" 2>/dev/null | wc -l) files"
@@ -223,12 +243,15 @@ RECORD=$(jq -cn \
   --argjson before "$BEFORE" \
   --argjson after "$AFTER" \
   --argjson delta "$DELTA" \
+  --argjson delta_sync "$DELTA_SYNC" \
+  --argjson startup "$STARTUP" \
   '{epoch: $epoch, started_at: $started_at, finished_at: $finished_at,
     duration_s: $duration_s, schema_note: $schema_note,
     versions: {tapd: $tapd_version, lnd: $lnd_version, bitcoind: $btc_version},
     roles: {minter: $minter, receiver: $receiver},
     config: $config, cases: $cases,
-    before: $before, after: $after, delta: $delta}')
+    before: $before, after: $after, delta: $delta,
+    delta_sync: $delta_sync, startup: $startup}')
 
 echo "$RECORD" >> "$DATA"
 echo "$RECORD" | jq . > "$RUNDIR/record.json"

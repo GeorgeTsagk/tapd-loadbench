@@ -396,6 +396,86 @@ sqlite_wal_state() {
   }'
 }
 
+# Delta sync, measured passively from the daemon logs.
+#
+# This is the only way to see the cursor-based sync from #2202 at all. The
+# manual SyncUniverse RPC calls UniverseSyncer.SyncUniverse, which is the
+# enumeration path; only the background FederationEnvoy takes the delta path via
+# tryDeltaSync. So the feature under test is never reached by anything the
+# harness or the load suite triggers, and has to be observed where it happens.
+#
+# A round brackets two lines:
+#   Syncing Universe state with server=X                     start
+#   Delta sync with server=X complete: cursor A -> B, ...     end
+# and the line between them carries the fallback count, which is the signal
+# that matters most: a non-zero fallback means the cursor path gave up and the
+# old enumeration diff ran instead.
+delta_sync_stats() {
+  local node=$1 since=$2
+  docker logs --since "$since" "$node" 2>&1 \
+    | grep -E "Syncing Universe state with server=|Delta sync with server=.* complete:|via fallback" \
+    | awk '
+      function secs(ts,    h, m, sec, p) {
+        split(ts, p, ":"); h = p[1]; m = p[2]; sec = p[3]
+        return h * 3600 + m * 60 + sec
+      }
+      /Syncing Universe state with server=/ {
+        host = $0; sub(/.*server=/, "", host)
+        start[host] = secs($2)
+        next
+      }
+      /via fallback/ {
+        fb = $0; sub(/.*\(/, "", fb); sub(/ via fallback.*/, "", fb)
+        fallbacks += fb + 0
+        next
+      }
+      /Delta sync with server=.* complete:/ {
+        host = $0; sub(/.*server=/, "", host); sub(/ complete:.*/, "", host)
+        adv = $0; sub(/.*cursor /, "", adv); sub(/,.*/, "", adv)
+        split(adv, c, " -> ")
+        d = $0; sub(/.*diff_size=/, "", d)
+        if (host in start) {
+          el = secs($2) - start[host]
+          if (el < 0) el += 86400
+          total += el
+          if (el > max) max = el
+          rounds++
+          if (d + 0 == 0) empty++
+          cursor += (c[2] + 0) - (c[1] + 0)
+          universes += d + 0
+        }
+      }
+      END {
+        printf "{\"rounds\":%d,\"empty_rounds\":%d,\"total_s\":%.3f,", \
+          rounds, empty, total
+        printf "\"max_s\":%.3f,\"cursor_advance\":%d,", max, cursor
+        printf "\"universes_synced\":%d,\"fallbacks\":%d}", universes, fallbacks
+      }'
+}
+
+# Time a cold start, which is the one number that exposes what a growing
+# database costs before the daemon serves anything: migrations, and on sqlite
+# the wal-index rebuild, which took 1.8s on the v0.8.1 minter.
+#
+# Taken at the end of an epoch, so every epoch afterwards begins from a cold
+# daemon. That is deliberate: uniformly cold is comparable, whereas measuring it
+# mid-epoch would leave the following cases running against caches this restart
+# had just dropped.
+measure_startup() {
+  local node=$1 s e
+  s=$(date +%s.%N)
+  docker restart "$node" >/dev/null 2>&1 || { printf 'null'; return; }
+  local i
+  for i in $(seq 1 180); do
+    tapcli "$node" getinfo >/dev/null 2>&1 && break
+    sleep 1
+  done
+  tapcli "$node" getinfo >/dev/null 2>&1 || { printf 'null'; return; }
+  e=$(date +%s.%N)
+  jq -cn --argjson ready_s "$(awk -v a="$s" -v b="$e" 'BEGIN{printf "%.2f", b-a}')" \
+    '{ready_s: $ready_s}'
+}
+
 # Cumulative CPU microseconds for the containers a case can load. Differencing
 # this across a case gives the exact CPU seconds the case cost, which is the
 # denominator the CPU profile gets attributed against. Without it a profile
