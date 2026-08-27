@@ -164,6 +164,52 @@ all_container_stats() {
 }
 
 # Everything about one tapd node.
+# Asset and group counts, paged.
+#
+# tapcli cannot do this. ListAssets applies DefaultAssetQueryLimit=512 when the
+# limit is unset, and tapcli exposes neither the offset nor the limit flag, so
+# "assets list | length" silently plateaus at exactly 512 and every count
+# derived from it goes wrong without any error. It did, from epoch 25 of the v2
+# series onward, where the true figure was already 2484.
+#
+# REST takes both parameters, so page through it at MaxAssetQueryLimit and stop
+# on the first short page. Group keys are collected from the same pages rather
+# than a second pass, since the response is the expensive part.
+tapd_asset_counts() {
+  local node=$1
+  local mac cert port
+  port=${TAPD_REST[$node]}
+  cert="$CREDS/$node/tls.cert"
+  [[ -r "$cert" && -r "$CREDS/$node/admin.macaroon" ]] || { printf 'null'; return; }
+  mac=$(xxd -p -c9999 "$CREDS/$node/admin.macaroon" 2>/dev/null) || { printf 'null'; return; }
+
+  local offset=0 page=16384 total=0 n body k groupkeys=""
+  while :; do
+    body=$(curl -s --max-time 120 --cacert "$cert" \
+      -H "Grpc-Metadata-macaroon: $mac" \
+      "https://localhost:$port/v1/taproot-assets/assets?limit=$page&offset=$offset" \
+      2>/dev/null) || { printf 'null'; return; }
+    n=$(printf '%s' "$body" | jq '.assets | length' 2>/dev/null)
+    # A missing or unparseable page means the count is unknown. Reporting a
+    # partial total as if it were complete is what produced the 512 plateau.
+    [[ -n "$n" && "$n" != "null" ]] || { printf 'null'; return; }
+    # Reduce to distinct keys per page before accumulating. A page carries up
+    # to 16384 entries but only a handful of distinct groups, and handing the
+    # unreduced list to another process overflows the argument limit.
+    while IFS= read -r k; do
+      [[ -n "$k" ]] && groupkeys+="$k"$'\n'
+    done < <(printf '%s' "$body" | jq -r \
+      '[.assets[]?.asset_group.tweaked_group_key // empty] | unique[]' 2>/dev/null)
+    total=$(( total + n ))
+    (( n < page )) && break
+    offset=$(( offset + page ))
+  done
+  local ngroups
+  ngroups=$(printf '%s' "$groupkeys" | sort -u | grep -c . || true)
+  jq -cn --argjson a "$total" --argjson g "${ngroups:-0}" \
+    '{assets: $a, groups: $g}'
+}
+
 tapd_metrics() {
   local node=$1
   local backend=${TAPD_DB[$node]}
@@ -191,9 +237,10 @@ tapd_metrics() {
   mvsum=$(echo "$mv" | jq -r '(.multiverse_root.root_sum // "0") | tonumber')
   mvroot=$(echo "$mv" | jq -r '.multiverse_root.root_hash // ""')
 
-  assets=$(tapcli "$node" assets list 2>/dev/null | jq '.assets|length' || echo 0)
-  groups=$(tapcli "$node" assets list 2>/dev/null \
-    | jq '[.assets[]?.asset_group.tweaked_group_key // empty]|unique|length' || echo 0)
+  local counts
+  counts=$(tapd_asset_counts "$node")
+  assets=$(printf '%s' "$counts" | jq -r '.assets // "null"')
+  groups=$(printf '%s' "$counts" | jq -r '.groups // "null"')
   roots=$(tapcli "$node" universe roots 2>/dev/null | jq '.universe_roots|length' || echo 0)
   batches=$(tapcli "$node" assets mint batches 2>/dev/null | jq '.batches|length' || echo 0)
 

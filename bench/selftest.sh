@@ -12,7 +12,8 @@ REQUIRED=(die log btc lncli tapcli mine sync_creds health_check ensure_funded
           cgroup_cpu all_container_stats capture_profiles capture_all
           grpc_latency sqlite_bytes postgres_bytes proofs_bytes proofs_count
           tapd_metrics snapshot cpu_profile_start cpu_profile_stop
-          sqlite_wal_state pg_stat_reset pg_stat_top case_cpu)
+          sqlite_wal_state pg_stat_reset pg_stat_top case_cpu
+          tapd_asset_counts)
 missing=()
 for f in "${REQUIRED[@]}"; do
   declare -F "$f" >/dev/null || missing+=("$f")

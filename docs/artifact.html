@@ -10787,6 +10787,7 @@
     <span class="eyebrow">By role</span>
     <h2>Assets held</h2>
     <p class="note">Cumulative asset count on the minter and the receiver.</p>
+    <p class="note" id="assets-cap-note" hidden></p>
     <div class="legend" id="lg-assets"></div>
     <div class="plot" id="p-assets"><div class="tip" id="t-assets"></div></div>
   </section>
@@ -11122,6 +11123,23 @@ function render(data) {
   lineChart(document.getElementById('p-memb'), document.getElementById('t-memb'),
     document.getElementById('lg-memb'), memSeries('bob-tapd'), fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
+
+  // Counts were taken with tapcli, which cannot page: ListAssets applies a
+  // default limit of 512 when none is given, so the series plateaued at exactly
+  // that and stopped tracking reality. Say which epochs are affected rather
+  // than leaving a wrong number on the chart unmarked. Later epochs page over
+  // REST and are correct.
+  const capped = data.filter(e => e.after.tapd['alice-tapd'].assets === 512)
+    .map(e => e.epoch);
+  if (capped.length) {
+    const note = document.getElementById('assets-cap-note');
+    note.hidden = false;
+    note.textContent = 'Minter counts for epoch ' + capped[0] + ' to '
+      + capped[capped.length - 1] + ' read exactly 512 and are wrong, not '
+      + 'flat: they were collected with a call that pages at 512 by default. '
+      + 'The true figure at epoch ' + capped[capped.length - 1]
+      + ' was 2484. Counts are paged from the following epoch on.';
+  }
 
   const head = ['epoch', 'finished (UTC)', 'total',
     ...CASES.map(c => ({ text: c.key, title: c.what })),
