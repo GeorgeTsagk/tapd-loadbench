@@ -13691,6 +13691,175 @@
         "ready_s": 4.57
       }
     }
+  },
+  {
+    "epoch": 104,
+    "finished_at": "2026-08-27T19:13:42Z",
+    "duration_s": 588.79,
+    "versions": {
+      "tapd": "0.8.99-alpha commit=v0.7.0-931-g9cbf40a6-dirty",
+      "lnd": "0.21.2-beta commit=v0.21.2-beta"
+    },
+    "cases": [
+      {
+        "name": "mintV2",
+        "status": "pass",
+        "duration_s": 3.34
+      },
+      {
+        "name": "burn",
+        "status": "pass",
+        "duration_s": 27.52
+      },
+      {
+        "name": "sendV2",
+        "status": "pass",
+        "duration_s": 200.15
+      },
+      {
+        "name": "sync",
+        "status": "pass",
+        "duration_s": 345.19
+      }
+    ],
+    "after": {
+      "tapd": {
+        "alice-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 239124480,
+          "proofs_bytes": 954267069,
+          "assets": 3216,
+          "universe_roots": 10,
+          "universe_leaves": 14845,
+          "multiverse_root": "59e685d5b15d6429e4c6b9b914db03dcaae2dbb4b5d2ee9abe5ff68255fbb14b"
+        },
+        "bob-tapd": {
+          "backend": "postgres",
+          "db_bytes": 117185559,
+          "proofs_bytes": 69079439,
+          "assets": 39,
+          "universe_roots": 10,
+          "universe_leaves": 17149,
+          "multiverse_root": "59e685d5b15d6429e4c6b9b914db03dcaae2dbb4b5d2ee9abe5ff68255fbb14b"
+        },
+        "uni-tapd": {
+          "backend": "sqlite",
+          "db_bytes": 15310848,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 5360,
+          "multiverse_root": "59e685d5b15d6429e4c6b9b914db03dcaae2dbb4b5d2ee9abe5ff68255fbb14b"
+        },
+        "uni2-tapd": {
+          "backend": "postgres",
+          "db_bytes": 27245591,
+          "proofs_bytes": 4096,
+          "assets": 0,
+          "universe_roots": 5,
+          "universe_leaves": 5385,
+          "multiverse_root": "59e685d5b15d6429e4c6b9b914db03dcaae2dbb4b5d2ee9abe5ff68255fbb14b"
+        }
+      },
+      "containers": {
+        "bitcoind": {
+          "mem_bytes": 64356352,
+          "mem_peak_bytes": 75399168
+        },
+        "pg": {
+          "mem_bytes": 196898816,
+          "mem_peak_bytes": 384794624
+        },
+        "alice": {
+          "mem_bytes": 125759488,
+          "mem_peak_bytes": 299991040
+        },
+        "bob": {
+          "mem_bytes": 62119936,
+          "mem_peak_bytes": 300662784
+        },
+        "uni": {
+          "mem_bytes": 57655296,
+          "mem_peak_bytes": 317333504
+        },
+        "uni2": {
+          "mem_bytes": 44367872,
+          "mem_peak_bytes": 298610688
+        },
+        "alice-tapd": {
+          "mem_bytes": 510836736,
+          "mem_peak_bytes": 574500864
+        },
+        "bob-tapd": {
+          "mem_bytes": 163491840,
+          "mem_peak_bytes": 276910080
+        },
+        "uni-tapd": {
+          "mem_bytes": 68198400,
+          "mem_peak_bytes": 107261952
+        },
+        "uni2-tapd": {
+          "mem_bytes": 44089344,
+          "mem_peak_bytes": 74395648
+        }
+      }
+    },
+    "delta": {
+      "alice-tapd": {
+        "db_bytes": 3354624
+      },
+      "bob-tapd": {
+        "db_bytes": 1245184
+      },
+      "uni-tapd": {
+        "db_bytes": 155648
+      },
+      "uni2-tapd": {
+        "db_bytes": 32768
+      },
+      "containers": {
+        "db_bytes": null
+      }
+    },
+    "delta_sync": {
+      "alice-tapd": {
+        "rounds": 1,
+        "total_s": 31.694,
+        "max_s": 31.694,
+        "cursor_advance": 200,
+        "universes_synced": 3,
+        "fallbacks": 0
+      },
+      "bob-tapd": {
+        "rounds": 2,
+        "total_s": 159.600,
+        "max_s": 158.409,
+        "cursor_advance": 159,
+        "universes_synced": 4,
+        "fallbacks": 3
+      },
+      "uni-tapd": {
+        "rounds": 1,
+        "total_s": 1.280,
+        "max_s": 1.280,
+        "cursor_advance": 50,
+        "universes_synced": 1,
+        "fallbacks": 0
+      },
+      "uni2-tapd": {
+        "rounds": 1,
+        "total_s": 1.430,
+        "max_s": 1.430,
+        "cursor_advance": 50,
+        "universes_synced": 1,
+        "fallbacks": 0
+      }
+    },
+    "startup": {
+      "alice-tapd": {
+        "ready_s": 2.99
+      }
+    }
   }
 ];</script>
 
