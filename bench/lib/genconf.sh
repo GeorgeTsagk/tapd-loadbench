@@ -23,8 +23,13 @@ mint-test-supply-max=$MINT_SUPPLY_MAX
 
 send-test-num-sends=$SEND_NUM_SENDS
 send-test-num-assets=$SEND_NUM_ASSETS
+send-test-concurrency=$SEND_CONCURRENCY
+send-test-mix=$SEND_MIX
 send-asset-type="$SEND_ASSET_TYPE"
 addr-version="$SEND_ADDR_VERSION"
+
+burn-test-num-burns=$BURN_NUM_BURNS
+burn-test-amount=$BURN_AMOUNT
 
 sync-type="$SYNC_TYPE"
 sync-num-clients=$SYNC_NUM_CLIENTS

@@ -93,6 +93,26 @@ ensure_funded() {
     mine 6
     sleep 5
   fi
+
+  # Balance alone is not enough for concurrent sends. Each transfer anchors its
+  # own transaction, so the wallet needs at least as many separate confirmed
+  # outputs as there are sends in flight: one large output cannot fund four at
+  # once, because the change from the first is still unconfirmed when the second
+  # asks for coins. That is exactly how the first concurrent run failed, with
+  # lnd reporting "not enough witness outputs" while holding 4.9 BTC.
+  local want=${MIN_LND_UTXOS:-0} have
+  (( want > 0 )) || return 0
+  have=$(lncli "$node" listunspent --min_confs=1 2>/dev/null \
+    | jq '.utxos | length')
+  if (( ${have:-0} < want )); then
+    log "splitting coins on $node (${have:-0} < $want confirmed outputs)"
+    local i addr
+    for ((i = ${have:-0}; i < want; i++)); do
+      addr=$(lncli "$node" newaddress p2wkh | jq -r .address)
+      $BTC -rpcwallet=miner sendtoaddress "$addr" 1 >/dev/null
+    done
+    mine 6
+  fi
 }
 
 # Scrape a tapd prometheus endpoint once and cache it.
