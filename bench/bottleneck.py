@@ -160,8 +160,12 @@ def main():
     binary = sys.argv[2]
     out_path = pathlib.Path(sys.argv[3])
 
+    # A directory without record.json is from a run that died before writing
+    # its record, so its profiles belong to no measured epoch. Picking it would
+    # silently replace a good report with an empty one.
     rundirs = sorted(
-        d for d in (root / "logs").glob("epoch-*") if (d / "pprof").is_dir()
+        d for d in (root / "logs").glob("epoch-*")
+        if (d / "pprof").is_dir() and (d / "record.json").exists()
     )
     if not rundirs:
         print("no epochs with profiles yet")

@@ -287,6 +287,36 @@
     <div class="plot" id="p-memb"><div class="tip" id="t-memb"></div></div>
   </section>
 
+  <section class="card" id="ds-card" hidden>
+    <span class="eyebrow">Federation</span>
+    <h2>Delta sync</h2>
+    <p class="note">Time each node's background federation sync spent per
+      epoch, from the cursor-based path added in
+      <a href="https://github.com/lightninglabs/taproot-assets/pull/2202">#2202</a>.
+      This is measured passively from the daemon logs because nothing can
+      trigger it: the manual <code>SyncUniverse</code> RPC runs the older
+      enumeration path, and only the background federation envoy takes the
+      cursor route. Enumeration discovery costs one pass over every leaf on
+      both sides; the cursor asks only what has been added since it last
+      looked.</p>
+    <div class="legend" id="lg-ds"></div>
+    <div class="plot" id="p-ds"><div class="tip" id="t-ds"></div></div>
+    <p class="note" id="ds-fallback"></p>
+  </section>
+
+  <section class="card" id="su-card" hidden>
+    <span class="eyebrow">Minter</span>
+    <h2>Cold start</h2>
+    <p class="note">Seconds from container restart to the daemon answering,
+      measured at the end of every epoch so the restart cannot affect anything
+      recorded before it. This is what a growing database costs before the node
+      serves anything: migrations, and on sqlite the wal-index rebuild, which
+      reached 1.8s on the previous series where the WAL was never
+      checkpointed.</p>
+    <div class="legend" id="lg-su"></div>
+    <div class="plot" id="p-su"><div class="tip" id="t-su"></div></div>
+  </section>
+
   <section class="card">
     <span class="eyebrow">By role</span>
     <h2>Assets held</h2>
@@ -627,6 +657,64 @@ function render(data) {
   lineChart(document.getElementById('p-memb'), document.getElementById('t-memb'),
     document.getElementById('lg-memb'), memSeries('bob-tapd'), fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
+
+  // Delta sync. Only nodes that actually reported rounds get a series, so a
+  // node that never delta-synced does not draw a flat zero line implying it
+  // did. Epochs predating the metric are skipped rather than plotted as zero.
+  const dsNodes = NODES.filter(n =>
+    data.some(e => (e.delta_sync || {})[n.key]?.rounds));
+  if (dsNodes.length) {
+    document.getElementById('ds-card').hidden = false;
+    lineChart(
+      document.getElementById('p-ds'), document.getElementById('t-ds'),
+      document.getElementById('lg-ds'),
+      dsNodes.map(n => ({
+        name: n.name, label: n.short, color: n.color,
+        points: data.flatMap(e => {
+          const d = (e.delta_sync || {})[n.key];
+          return d && d.rounds ? [[e.epoch, d.total_s]] : [];
+        }),
+      })), fmtSecs);
+
+    // The fallback count is the field that matters most: a non-zero value
+    // means the cursor path gave up for that universe and the old enumeration
+    // diff ran instead. State it in words, because a reader looking at a time
+    // series has no way to see it.
+    const fb = dsNodes.map(n => {
+      const rounds = data.reduce((a, e) =>
+        a + ((e.delta_sync || {})[n.key]?.rounds || 0), 0);
+      const falls = data.reduce((a, e) =>
+        a + ((e.delta_sync || {})[n.key]?.fallbacks || 0), 0);
+      return { short: n.short, rounds, falls };
+    }).filter(x => x.rounds);
+    const bad = fb.filter(x => x.falls > 0);
+    document.getElementById('ds-fallback').textContent = bad.length
+      ? 'Fallbacks to the enumeration path: '
+        + bad.map(x => x.short + ' ' + x.falls).join(', ')
+        + '. A fallback means the cursor sync completed but the recomputed '
+        + 'local root did not match the peer, so that universe was re-synced '
+        + 'the old way. '
+        + fb.filter(x => x.falls === 0).map(x => x.short).join(' and ')
+        + ' never fell back.'
+      : 'No node fell back to the enumeration path in this series.';
+  }
+
+  // Cold start.
+  const suNodes = ROLES.filter(n =>
+    data.some(e => (e.startup || {})[n.key]?.ready_s));
+  if (suNodes.length) {
+    document.getElementById('su-card').hidden = false;
+    lineChart(
+      document.getElementById('p-su'), document.getElementById('t-su'),
+      document.getElementById('lg-su'),
+      suNodes.map(n => ({
+        name: n.name, label: n.short, color: n.color,
+        points: data.flatMap(e => {
+          const v = (e.startup || {})[n.key];
+          return v && v.ready_s ? [[e.epoch, v.ready_s]] : [];
+        }),
+      })), fmtSecs);
+  }
 
   // Counts were taken with tapcli, which cannot page: ListAssets applies a
   // default limit of 512 when none is given, so the series plateaued at exactly

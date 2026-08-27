@@ -38,7 +38,14 @@ jq -s '[ .[] | {
         mem_bytes, mem_peak_bytes: (.mem_peak_bytes // 0)
       }))
     },
-    delta: (.delta | map_values({db_bytes}))
+    delta: (.delta | map_values({db_bytes})),
+    # Delta sync and cold start. Only the fields the page plots, and each is
+    # optional: epochs recorded before these were collected carry neither, and
+    # the page has to render those as gaps rather than as zeros.
+    delta_sync: ((.delta_sync // {}) | map_values({
+      rounds, total_s, max_s, cursor_advance, universes_synced, fallbacks
+    })),
+    startup: ((.startup // {}) | map_values({ready_s}))
   } ] | sort_by(.epoch)' "$DATA" > "$OUT/epochs.json"
 
 # Symbolize the captured pprof profiles into JSON. Needs the Go toolchain and a
