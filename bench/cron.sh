@@ -31,6 +31,19 @@ exec > >(tee -a "$LOG") 2>&1
 
 echo "=== cron run $STAMP ==="
 
+# Stop when the series is complete. Removing the entry rather than merely
+# returning early means the schedule stops firing, instead of waking every 30
+# minutes to decide there is nothing to do. The last epoch has already been
+# rendered and pushed by the run that produced it.
+set -a; . "$HERE/config.env"; set +a
+recorded=$(wc -l < "$ROOT/data/epochs.jsonl" 2>/dev/null || echo 0)
+if [[ -n "${MAX_EPOCHS:-}" ]] && (( recorded >= MAX_EPOCHS )); then
+  echo "series complete at $recorded epochs (limit $MAX_EPOCHS)"
+  echo "removing the crontab entry; reinstall it to continue"
+  crontab -l 2>/dev/null | grep -v "$HERE/cron.sh" | crontab -
+  exit 0
+fi
+
 # A broken library aborted three hours of runs once; fail on that immediately
 # and visibly rather than inside deploy.
 "$HERE/selftest.sh" || { echo "selftest failed, aborting"; exit 1; }

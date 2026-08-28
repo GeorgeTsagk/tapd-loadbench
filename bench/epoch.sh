@@ -64,6 +64,13 @@ mkdir -p "$(dirname "$DATA")"
 touch "$DATA"
 EPOCH=$(( $(wc -l < "$DATA") + 1 ))
 
+# The series has a configured end. Check it here as well as in cron.sh so a
+# manual invocation cannot push past the limit either.
+if [[ -n "${MAX_EPOCHS:-}" ]] && (( EPOCH > MAX_EPOCHS )); then
+  echo "series complete: $((EPOCH - 1)) epochs recorded, limit is $MAX_EPOCHS"
+  exit 0
+fi
+
 # The minter is fixed. Alternating it does not work: the send case calls the
 # taproot-assets itest helper SyncUniverses, which polls until the two nodes'
 # universe root sets are *equal*. That only holds while one node has no assets
