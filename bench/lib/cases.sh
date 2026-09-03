@@ -41,6 +41,16 @@ backup_file_bytes() {
     /root/.tapd/data/regtest/assets.backup 2>/dev/null || printf ''
 }
 
+# Total spendable balance as the wallet itself reports it. This is the number
+# that decides whether a restore was useful: a leaf that comes back but cannot
+# be selected for a send has not really been recovered.
+spendable_balance() {
+  local node=$1
+  tapcli "$node" assets balance 2>/dev/null \
+    | jq '[.asset_balances[]?.balance | tonumber] | add // 0' 2>/dev/null \
+    || printf '0'
+}
+
 # Wipe the receiver's asset state and restore it from its own backup file.
 #
 # The backup is keyed to the lnd wallet, so only tapd's state can be dropped:
@@ -65,6 +75,7 @@ case_backup() {
   # at zero while the set above matches, so recording both makes that visible
   # instead of it passing silently or failing the whole case.
   visible_before=$(asset_set_digest "$node" | grep -c . || true)
+  local spendable_before; spendable_before=$(spendable_balance "$node")
   size_before=$(backup_file_bytes "$node")
   local leaves; leaves=$(printf '%s' "$before" | grep -c . || true)
   echo "before: $leaves leaves, backup ${size_before:-?} bytes"
@@ -118,6 +129,7 @@ case_backup() {
   after=$(asset_set_digest "$node" all) \
     || { echo "cannot re-read asset set"; return 1; }
   visible_after=$(asset_set_digest "$node" | grep -c . || true)
+  local spendable_after; spendable_after=$(spendable_balance "$node")
 
   # The updater rewrites the file after importing, on a debounce. Give it a
   # moment so the recorded size is the restored wallet's, not the empty one it
@@ -133,6 +145,8 @@ case_backup() {
     --argjson import_s "$(awk -v a="$i0" -v b="$i1" 'BEGIN{printf "%.2f", b-a}')" \
     --argjson imported "${imported:-0}" --argjson skipped "${skipped:-0}" \
     --argjson visible_before "${visible_before:-0}" \
+    --argjson spendable_before "${spendable_before:-0}" \
+    --argjson spendable_after "${spendable_after:-0}" \
     --argjson visible_after "${visible_after:-0}" \
     '$ARGS.named')
   echo "detail: $CASE_DETAIL"
@@ -147,6 +161,11 @@ case_backup() {
   echo "restore verified: $leaves leaves match, imported=$imported skipped=$skipped"
   if (( visible_before != visible_after )); then
     echo "NOTE: default ListAssets shows $visible_after of $visible_before" \
-      "restored leaves; the script key type is not preserved by the restore"
+      "leaves after the restore"
+  fi
+  if [[ "$spendable_before" != "$spendable_after" ]]; then
+    echo "NOTE: spendable balance $spendable_before before," \
+      "$spendable_after after; a leaf that cannot be selected for a send" \
+      "has not really been recovered"
   fi
 }

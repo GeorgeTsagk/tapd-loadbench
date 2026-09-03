@@ -35,7 +35,10 @@ if [[ ! -d "$SRC/.git" ]]; then
 fi
 
 cd "$SRC"
-git fetch -q "$UPSTREAM" main
+# Fetch every branch rather than just main: a revision under test can sit on a
+# PR branch, and a bare SHA cannot be fetched on its own unless the remote
+# allows reachable-SHA1 wants.
+git fetch -q "$UPSTREAM" '+refs/heads/*:refs/remotes/src/*' 
 git checkout -q --detach "$REV"
 git clean -qfd
 BUILT_REV=$(git rev-parse --short HEAD)
