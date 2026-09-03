@@ -244,6 +244,13 @@ tapd_metrics() {
   roots=$(tapcli "$node" universe roots 2>/dev/null | jq '.universe_roots|length' || echo 0)
   batches=$(tapcli "$node" assets mint batches 2>/dev/null | jq '.batches|length' || echo 0)
 
+  # Size of the live encrypted backup file this node keeps on disk. Tracked for
+  # every node, though only the receiver's is actually restored from: the
+  # minter's is the interesting curve, since its wallet is the one that grows.
+  local backup_bytes
+  backup_bytes=$(docker exec "$node" stat -c %s \
+    /root/.tapd/data/regtest/assets.backup 2>/dev/null || printf '')
+
   local storage
   if [[ "$backend" == "sqlite" ]]; then
     storage=$(jq -cn --argjson f "$(sqlite_bytes "$node")" '{sqlite: $f}')
@@ -257,6 +264,7 @@ tapd_metrics() {
     --argjson storage "$storage" \
     --argjson proofs_bytes "${proofs_b:-0}" \
     --argjson proofs_files "${proofs_n:-0}" \
+    --argjson backup_bytes "${backup_bytes:-null}" \
     --argjson assets "${assets:-0}" \
     --argjson groups "${groups:-0}" \
     --argjson universe_roots "${roots:-0}" \
@@ -274,6 +282,7 @@ tapd_metrics() {
     --argjson grpc "$(grpc_latency "$node" 2>/dev/null || echo '{}')" \
     '{backend: $backend, db_bytes: $db_bytes, storage: $storage,
       proofs_bytes: $proofs_bytes, proofs_files: $proofs_files,
+      backup_bytes: $backup_bytes,
       assets: $assets, groups: $groups, universe_roots: $universe_roots,
       universe_leaves: $universe_leaves, universe_groups: $universe_groups,
       multiverse_sum: $multiverse_sum, multiverse_root: $multiverse_root,
@@ -286,12 +295,13 @@ tapd_metrics() {
 # Snapshot of the whole network.
 snapshot() {
   # One batched docker stats call shared by every node below.
-  CONTAINER_STATS=$(all_container_stats)
+  CONTAINER_STATS=$(as_json "$(all_container_stats)")
   PROM_CACHE=()
 
   local out="{}" n
   for n in $TAPD_NODES; do
-    out=$(jq -cn --argjson acc "$out" --arg k "$n" --argjson v "$(tapd_metrics "$n")" \
+    out=$(jq -cn --argjson acc "$out" --arg k "$n" \
+      --argjson v "$(as_json "$(tapd_metrics "$n")")" \
       '$acc + {($k): $v}')
   done
   # WAL checkpoint state for the sqlite nodes. Reported separately from the
@@ -302,7 +312,7 @@ snapshot() {
   for n in $TAPD_NODES; do
     [[ "${TAPD_DB[$n]}" == sqlite ]] || continue
     wal=$(jq -cn --argjson acc "$wal" --arg k "$n" \
-      --argjson v "$(sqlite_wal_state "$n")" '$acc + {($k): $v}')
+      --argjson v "$(as_json "$(sqlite_wal_state "$n")")" '$acc + {($k): $v}')
   done
   local height
   height=$(btc getblockcount 2>/dev/null || echo 0)
@@ -474,6 +484,25 @@ measure_startup() {
   e=$(date +%s.%N)
   jq -cn --argjson ready_s "$(awk -v a="$s" -v b="$e" 'BEGIN{printf "%.2f", b-a}')" \
     '{ready_s: $ready_s}'
+}
+
+# Guard for every value that reaches jq --argjson.
+#
+# A measurement function can legitimately come back empty: a node mid-restart
+# answers nothing, and a prometheus scrape can time out. An empty string is
+# fatal to --argjson, which aborts the whole epoch before any record is
+# written. That is what killed the series after a cold-start restart left the
+# minter briefly unready.
+#
+# Substituting null keeps the epoch alive and records the gap honestly. Never
+# substitute 0 here: a zero is indistinguishable from a real measurement.
+as_json() {
+  local v=$1
+  if [[ -n "$v" ]] && printf '%s' "$v" | jq -e . >/dev/null 2>&1; then
+    printf '%s' "$v"
+  else
+    printf 'null'
+  fi
 }
 
 # Cumulative CPU microseconds for the containers a case can load. Differencing

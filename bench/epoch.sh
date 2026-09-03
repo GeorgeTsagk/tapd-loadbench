@@ -17,6 +17,7 @@ set -a; . "$HERE/config.env"; set +a
 . "$HERE/lib/common.sh"
 . "$HERE/lib/genconf.sh"
 . "$HERE/lib/metrics.sh"
+. "$HERE/lib/cases.sh"
 
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -133,11 +134,20 @@ for case_name in $CASES; do
 
   c0=$(date +%s.%N)
   status=pass
-  # The binary insists on finding loadtest.conf in its working directory.
-  ( cd "$RUNDIR" && "$LOADTEST" -test.v \
-      -test.run "TestPerformance/$case_name" \
-      -test.timeout "$CASE_TIMEOUT" ) \
-    > "$RUNDIR/$case_name.log" 2>&1 || status=fail
+  CASE_DETAIL=null
+  if declare -F "case_$case_name" >/dev/null; then
+    # A harness-native case. Some operations are not expressible in the load
+    # suite at all: the backup case has to stop a container, wipe its volume
+    # and bring it back, which only the harness can do. Such a case writes its
+    # own measurements to CASE_DETAIL.
+    "case_$case_name" > "$RUNDIR/$case_name.log" 2>&1 || status=fail
+  else
+    # The binary insists on finding loadtest.conf in its working directory.
+    ( cd "$RUNDIR" && "$LOADTEST" -test.v \
+        -test.run "TestPerformance/$case_name" \
+        -test.timeout "$CASE_TIMEOUT" ) \
+      > "$RUNDIR/$case_name.log" 2>&1 || status=fail
+  fi
   c1=$(date +%s.%N)
   dur=$(awk -v a="$c0" -v b="$c1" 'BEGIN{printf "%.2f", b-a}')
 
@@ -152,7 +162,9 @@ for case_name in $CASES; do
 
   # A case that gets skipped (no matching -test.run) reports success but does
   # no work, which would silently poison the series. Detect it.
-  if ! grep -q -- "--- PASS: TestPerformance/$case_name\|--- FAIL: TestPerformance/$case_name" \
+  if declare -F "case_$case_name" >/dev/null; then
+    : # Native case: the exit status already set status, nothing to detect.
+  elif ! grep -q -- "--- PASS: TestPerformance/$case_name\|--- FAIL: TestPerformance/$case_name" \
       "$RUNDIR/$case_name.log"; then
     # A case killed by -test.timeout panics, so it prints neither result line.
     # That is a timeout, not a skip, and conflating the two hid three real
@@ -168,7 +180,9 @@ for case_name in $CASES; do
   log "  $case_name: $status in ${dur}s"
   CASE_RESULTS=$(jq -cn --argjson acc "$CASE_RESULTS" --arg n "$case_name" \
     --arg s "$status" --argjson d "$dur" --argjson cpu "$CASE_CPU" \
-    '$acc + [{name: $n, status: $s, duration_s: $d, cpu_usec: $cpu}]')
+    --argjson detail "$(as_json "$CASE_DETAIL")" \
+    '$acc + [{name: $n, status: $s, duration_s: $d, cpu_usec: $cpu,
+              detail: $detail}]')
 done
 
 T1=$(date +%s.%N)
@@ -186,7 +200,8 @@ AFTER=$(snapshot)
 DELTA_SYNC="{}"
 for n in $TAPD_NODES; do
   DELTA_SYNC=$(jq -cn --argjson acc "$DELTA_SYNC" --arg k "$n" \
-    --argjson v "$(delta_sync_stats "$n" "$STARTED")" '$acc + {($k): $v}')
+    --argjson v "$(as_json "$(delta_sync_stats "$n" "$STARTED")")" \
+    '$acc + {($k): $v}')
 done
 log "delta sync: $(printf '%s' "$DELTA_SYNC" | jq -c 'map_values({rounds, fallbacks})')"
 
@@ -194,7 +209,7 @@ log "delta sync: $(printf '%s' "$DELTA_SYNC" | jq -c 'map_values({rounds, fallba
 # above. Every epoch therefore begins with a cold minter, which is uniform and
 # so comparable.
 log "measuring cold start of $MINTER_TAPD"
-STARTUP=$(jq -cn --argjson v "$(measure_startup "$MINTER_TAPD")" \
+STARTUP=$(jq -cn --argjson v "$(as_json "$(measure_startup "$MINTER_TAPD")")" \
   --arg k "$MINTER_TAPD" '{($k): $v}')
 log "startup: $(printf '%s' "$STARTUP" | jq -c .)"
 

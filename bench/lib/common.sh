@@ -27,9 +27,15 @@ PG_DATABASES="bobtapd uni2tapd"
 # Federation topology. tapd only honours --universe.federationserver if the peer
 # is already accepting RPC when tapd starts, and compose start order does not
 # guarantee that, so deploy.sh reconciles this explicitly instead.
+# Peering is deliberately symmetric between the minter and the receiver. It was
+# not, and the asymmetry was expensive: the receiver learns the minter on its
+# own by receiving proofs from it, while the minter never learned the receiver,
+# so the receiver stayed permanently ahead. Its post-delta root check could then
+# never match, and every sync round demoted every universe to the old
+# enumeration diff, 151 times over the previous series, each ending diff_size=0.
 declare -A FEDERATION=(
-  [alice-tapd]="uni-tapd uni2-tapd"
-  [bob-tapd]="uni-tapd uni2-tapd"
+  [alice-tapd]="uni-tapd uni2-tapd bob-tapd"
+  [bob-tapd]="uni-tapd uni2-tapd alice-tapd"
   [uni-tapd]="uni2-tapd"
   [uni2-tapd]="uni-tapd"
 )

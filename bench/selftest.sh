@@ -5,7 +5,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a; . "$HERE/config.env"; set +a
-. "$HERE/lib/common.sh"; . "$HERE/lib/genconf.sh"; . "$HERE/lib/metrics.sh"
+. "$HERE/lib/common.sh"; . "$HERE/lib/genconf.sh"; . "$HERE/lib/metrics.sh"; . "$HERE/lib/cases.sh"
 
 REQUIRED=(die log btc lncli tapcli mine sync_creds health_check ensure_funded
           ensure_federation prom prom_fetch prom_json gen_conf cgroup_memory
@@ -13,7 +13,8 @@ REQUIRED=(die log btc lncli tapcli mine sync_creds health_check ensure_funded
           grpc_latency sqlite_bytes postgres_bytes proofs_bytes proofs_count
           tapd_metrics snapshot cpu_profile_start cpu_profile_stop
           sqlite_wal_state pg_stat_reset pg_stat_top case_cpu
-          tapd_asset_counts delta_sync_stats measure_startup)
+          tapd_asset_counts delta_sync_stats measure_startup as_json
+          asset_set_digest backup_file_bytes case_backup)
 missing=()
 for f in "${REQUIRED[@]}"; do
   declare -F "$f" >/dev/null || missing+=("$f")
