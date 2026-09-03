@@ -27,10 +27,14 @@ mkdir -p "$OUT"
 jq -s '[ .[] | {
     epoch, finished_at, duration_s,
     versions: {tapd: .versions.tapd, lnd: .versions.lnd},
-    cases: [.cases[] | {name, status, duration_s}],
+    # detail carries the measurements a native case took for itself. Only the
+    # backup case sets it, so it is null everywhere else and the page has to
+    # treat it as optional.
+    cases: [.cases[] | {name, status, duration_s, detail: (.detail // null)}],
     after: {
       tapd: (.after.tapd | map_values({
         backend, db_bytes, proofs_bytes, assets, universe_roots,
+        backup_bytes: (.backup_bytes // null),
         universe_leaves: (.universe_leaves // 0),
         multiverse_root: (.multiverse_root // "")
       })),

@@ -208,27 +208,42 @@
       {
         "name": "mintV2",
         "status": "pass",
-        "duration_s": 1.30
+        "duration_s": 1.30,
+        "detail": null
       },
       {
         "name": "burn",
         "status": "pass",
-        "duration_s": 1.23
+        "duration_s": 1.23,
+        "detail": null
       },
       {
         "name": "sendV2",
         "status": "pass",
-        "duration_s": 63.57
+        "duration_s": 63.57,
+        "detail": null
       },
       {
         "name": "backup",
         "status": "pass",
-        "duration_s": 25.46
+        "duration_s": 25.46,
+        "detail": {
+          "leaves": 18,
+          "backup_bytes": 228693,
+          "backup_bytes_after": 228693,
+          "wipe_s": 3.46,
+          "import_s": 11.07,
+          "imported": 18,
+          "skipped": 0,
+          "visible_before": 9,
+          "visible_after": 0
+        }
       },
       {
         "name": "sync",
         "status": "pass",
-        "duration_s": 3.23
+        "duration_s": 3.23,
+        "detail": null
       }
     ],
     "after": {
@@ -239,6 +254,7 @@
           "proofs_bytes": 5417295,
           "assets": 30,
           "universe_roots": 9,
+          "backup_bytes": 777254,
           "universe_leaves": 21,
           "multiverse_root": "2e327f3953c616426d5ba4d9e983ea052dba5cc5c4d5714a2017c30cbd37d01f"
         },
@@ -248,6 +264,7 @@
           "proofs_bytes": 312276,
           "assets": 0,
           "universe_roots": 0,
+          "backup_bytes": 228693,
           "universe_leaves": 0,
           "multiverse_root": ""
         },
@@ -257,6 +274,7 @@
           "proofs_bytes": 4096,
           "assets": 0,
           "universe_roots": 5,
+          "backup_bytes": 93,
           "universe_leaves": 0,
           "multiverse_root": "2e327f3953c616426d5ba4d9e983ea052dba5cc5c4d5714a2017c30cbd37d01f"
         },
@@ -266,6 +284,7 @@
           "proofs_bytes": 4096,
           "assets": 0,
           "universe_roots": 5,
+          "backup_bytes": 93,
           "universe_leaves": 0,
           "multiverse_root": "2e327f3953c616426d5ba4d9e983ea052dba5cc5c4d5714a2017c30cbd37d01f"
         }
@@ -455,6 +474,33 @@
       and holds far fewer assets.</p>
     <div class="legend" id="lg-memb"></div>
     <div class="plot" id="p-memb"><div class="tip" id="t-memb"></div></div>
+  </section>
+
+  <section class="card" id="bk-card" hidden>
+    <span class="eyebrow">Backup file</span>
+    <h2>Encrypted backup size</h2>
+    <p class="note">Size of the live <code>assets.backup</code> file each node
+      keeps on disk, from
+      <a href="https://github.com/lightninglabs/taproot-assets/pull/2277">#2277</a>.
+      One compact entry per confirmed unspent leaf, so the curve tracks wallet
+      size rather than history. Only the receiver is ever restored from its
+      file; the minter is shown because its wallet is the one that grows.</p>
+    <div class="legend" id="lg-bk"></div>
+    <div class="plot" id="p-bk"><div class="tip" id="t-bk"></div></div>
+  </section>
+
+  <section class="card" id="rc-card" hidden>
+    <span class="eyebrow">Receiver</span>
+    <h2>Wipe and restore</h2>
+    <p class="note">Every epoch the receiver has its database and proofs
+      destroyed and is rebuilt from its backup file on the same lnd node. The
+      case fails unless the recovered leaf set matches exactly, compared by
+      asset id, script key and amount rather than by count. Import reads whole
+      blocks back from the chain backend to rehydrate stripped proofs, so this
+      is a measurement of chain rehydration and not of a universe server.</p>
+    <div class="legend" id="lg-rc"></div>
+    <div class="plot" id="p-rc"><div class="tip" id="t-rc"></div></div>
+    <p class="note" id="rc-note"></p>
   </section>
 
   <section class="card" id="ds-card" hidden>
@@ -827,6 +873,64 @@ function render(data) {
   lineChart(document.getElementById('p-memb'), document.getElementById('t-memb'),
     document.getElementById('lg-memb'), memSeries('bob-tapd'), fmtBytes);
   draw('assets', ROLES, assetsOf, fmtInt);
+
+  // Backup file size per node. Nodes that never wrote a file get no series.
+  const bkNodes = NODES.filter(n =>
+    data.some(e => e.after.tapd[n.key]?.backup_bytes));
+  if (bkNodes.length) {
+    document.getElementById('bk-card').hidden = false;
+    lineChart(
+      document.getElementById('p-bk'), document.getElementById('t-bk'),
+      document.getElementById('lg-bk'),
+      bkNodes.map(n => ({
+        name: n.name, label: n.short, color: n.color,
+        points: data.flatMap(e => {
+          const v = e.after.tapd[n.key]?.backup_bytes;
+          return v ? [[e.epoch, v]] : [];
+        }),
+      })), fmtBytes);
+  }
+
+  // Restore timings. Wipe and import are both seconds, so they share a scale
+  // and belong on one chart; leaf count and sizes do not and stay out of it.
+  const detailOf = e => (e.cases || []).find(c => c.name === 'backup')?.detail;
+  const rcEpochs = data.filter(e => detailOf(e));
+  if (rcEpochs.length) {
+    document.getElementById('rc-card').hidden = false;
+    lineChart(
+      document.getElementById('p-rc'), document.getElementById('t-rc'),
+      document.getElementById('lg-rc'),
+      [
+        {
+          name: 'import (rehydrate from chain)', label: 'import',
+          color: 'var(--series-2)',
+          points: rcEpochs.map(e => [e.epoch, detailOf(e).import_s]),
+        },
+        {
+          name: 'wipe and restart', label: 'wipe',
+          color: 'var(--series-3)',
+          points: rcEpochs.map(e => [e.epoch, detailOf(e).wipe_s]),
+        },
+      ], fmtSecs);
+
+    // The leaf count is what both timings scale with, and the visibility gap
+    // is a defect worth stating rather than leaving in a tooltip.
+    const last = detailOf(rcEpochs[rcEpochs.length - 1]);
+    const hidden = rcEpochs.filter(e => {
+      const d = detailOf(e);
+      return d.visible_before > 0 && d.visible_after === 0;
+    }).length;
+    let txt = 'Most recent restore: ' + last.leaves + ' leaves, '
+      + fmtBytes(last.backup_bytes) + ' file, ' + last.imported
+      + ' imported and ' + last.skipped + ' skipped.';
+    if (hidden > 0) {
+      txt += ' In ' + hidden + ' of ' + rcEpochs.length + ' restores the '
+        + 'recovered leaves were invisible to a default ListAssets call: every '
+        + 'leaf comes back, but its script key type is not preserved, and the '
+        + 'RPC filters to BIP86 keys unless asked for all types.';
+    }
+    document.getElementById('rc-note').textContent = txt;
+  }
 
   // Delta sync. Only nodes that actually reported rounds get a series, so a
   // node that never delta-synced does not draw a flat zero line implying it
